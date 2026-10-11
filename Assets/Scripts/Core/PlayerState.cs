@@ -6,7 +6,7 @@ namespace Coup.Core
     public class PlayerState
     {
         public int Index { get; }
-        public string Name { get; }
+        public string Name { get; internal set; }
         public int Coins { get; internal set; }
 
         private readonly List<Role> _influence = new();
@@ -35,6 +35,17 @@ namespace Coup.Core
         internal void GainCard(Role role) => _influence.Add(role);
 
         internal void ClearInfluence() => _influence.Clear();
+
+        /// <summary>Replaces the hand and the public pile. Used when a server snapshot arrives.</summary>
+        internal void Show(IReadOnlyList<Role> hidden, IReadOnlyList<Role> revealed)
+        {
+            _influence.Clear();
+            _revealed.Clear();
+            if (hidden != null)
+                for (var i = 0; i < hidden.Count; i++) _influence.Add(hidden[i]);
+            if (revealed != null)
+                for (var i = 0; i < revealed.Count; i++) _revealed.Add(revealed[i]);
+        }
 
         /// <summary>Moves a card from the hand to the revealed pile. Returns false if not held.</summary>
         internal bool RevealCard(Role role)

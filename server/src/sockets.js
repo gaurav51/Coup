@@ -1,0 +1,229 @@
+import { isRejection } from "./errors.js";
+import { Client, Server } from "./protocol.js";
+import { RoomStore, parseCommand } from "./rooms.js";
+import { scheduleBots } from "./bots.js";
+
+export function channel(code) {
+  return `table:${code}`;
+}
+
+export function attachSockets(io, store = new RoomStore()) {
+  io.on("connection", (socket) => {
+    socket.onAny((event, ...args) => {
+      const data = args.filter((item) => typeof item !== "function");
+      logJson("<-", event, data.length === 1 ? data[0] : data);
+    });
+
+    socket.on(Client.CREATE, (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try {
+        const result = store.create({ name: data.name, socketId: socket.id });
+        bind(socket, result);
+        pushLobby(io, result.recipients);
+        console.log(`[coup ${result.code}] ${seatName(store, result)} created the table`);
+        done({ ok: true, code: result.code, token: result.token, seat: result.seat });
+      } catch (err) {
+        fail(socket, done, err);
+      }
+    });
+
+    socket.on(Client.JOIN, (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try {
+        const result = store.join({ code: data.code, name: data.name, socketId: socket.id });
+        bind(socket, result);
+        pushLobby(io, result.recipients);
+        console.log(`[coup ${result.code}] ${seatName(store, result)} joined`);
+        done({ ok: true, code: result.code, token: result.token, seat: result.seat });
+      } catch (err) {
+        fail(socket, done, err);
+      }
+    });
+
+    socket.on(Client.LEAVE, (payload, ack) => {
+      const [, done] = normalize(payload, ack);
+      try {
+        const code = socket.data.code;
+        const result = store.leave(socket.id);
+        unbind(socket);
+        if (result.kind === "lobby") pushLobby(io, result.recipients);
+        else pushMatch(io, store, result);
+        console.log(`[coup ${code}] a player left`);
+        done({ ok: true });
+      } catch (err) {
+        fail(socket, done, err);
+      }
+    });
+
+    socket.on(Client.READY, (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try {
+        const result = store.setReady(socket.id, data.ready);
+        pushLobby(io, result.recipients);
+        const ready = store.peek(result.code)?.players.find((seat) => seat.socketId === socket.id);
+        console.log(`[coup ${result.code}] ${ready?.name ?? "a player"} is ${ready?.ready ? "ready" : "not ready"}`);
+        done({ ok: true });
+      } catch (err) {
+        fail(socket, done, err);
+      }
+    });
+
+    socket.on(Client.START, (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try {
+        const seed = data.seed == null || data.seed === "" ? undefined : Number(data.seed);
+        const bots = Number(data.bots);
+        const result = store.start(
+          socket.id,
+          Number.isInteger(seed) ? seed : undefined,
+          Number.isInteger(bots) ? bots : 0,
+        );
+        const room = store.peek(result.code);
+        const names = room.players.map((seat) => (seat.bot ? `${seat.name} (bot)` : seat.name)).join(", ");
+        console.log(`[coup ${result.code}] started: ${names}`);
+        pushMatch(io, store, result);
+        done({ ok: true, code: result.code, seed: room.seed ?? null });
+      } catch (err) {
+        fail(socket, done, err);
+      }
+    });
+
+    socket.on(Client.RESUME, (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try {
+        const result = store.resume({ code: data.code, token: data.token, socketId: socket.id });
+        retire(io, result.replacedSocketId, result.code);
+        bind(socket, result);
+        console.log(`[coup ${result.code}] ${seatName(store, result)} resumed`);
+        if (result.kind === "lobby") pushLobby(io, result.recipients);
+        else pushMatch(io, store, result);
+        done({ ok: true, code: result.code, token: result.token, seat: result.seat });
+      } catch (err) {
+        fail(socket, done, err);
+      }
+    });
+
+    for (const [event, type] of [
+      [Client.DECLARE, "declare"],
+      [Client.CHALLENGE, "challenge"],
+      [Client.PASS, "pass"],
+      [Client.BLOCK, "block"],
+      [Client.LOSE, "lose"],
+      [Client.EXCHANGE, "exchange"],
+    ]) {
+      socket.on(event, (payload, ack) => {
+        const [data, done] = normalize(payload, ack);
+        try {
+          const result = store.act(socket.id, parseCommand(type, data));
+          pushMatch(io, store, result);
+          done({ ok: true });
+        } catch (err) {
+          fail(socket, done, err);
+        }
+      });
+    }
+
+    socket.on("disconnect", () => {
+      const code = socket.data.code;
+      const result = store.disconnect(socket.id);
+      if (!result) return;
+      if (code) console.log(`[coup ${code}] a player disconnected`);
+      if (result.kind === "lobby") pushLobby(io, result.recipients);
+      else pushMatch(io, store, result);
+    });
+  });
+
+  return store;
+}
+
+function retire(io, socketId, code) {
+  if (!socketId) return;
+  const previous = io.sockets.sockets.get(socketId);
+  if (!previous) return;
+  if (code) previous.leave(channel(code));
+  previous.data.code = null;
+  previous.data.token = null;
+  emit(previous, Server.REJECTED, { message: "This seat was resumed somewhere else." });
+}
+
+function bind(socket, result) {
+  if (socket.data.code && socket.data.code !== result.code) socket.leave(channel(socket.data.code));
+  socket.data.code = result.code;
+  socket.data.token = result.token;
+  socket.join(channel(result.code));
+}
+
+function unbind(socket) {
+  if (socket.data.code) socket.leave(channel(socket.data.code));
+  socket.data.code = null;
+  socket.data.token = null;
+}
+
+function pushLobby(io, recipients) {
+  if (!recipients) return;
+  for (const row of recipients) {
+    emit(io.sockets.sockets.get(row.socketId), Server.LOBBY, row.lobby);
+  }
+}
+
+function pushMatch(io, store, result) {
+  if (!result?.code) return;
+  pushLobby(io, result.lobbies);
+
+  if (result.fullLog) {
+    for (const row of result.states) {
+      const sock = io.sockets.sockets.get(row.socketId);
+      if (!sock) continue;
+      emit(sock, Server.LOG, { events: result.fullLog });
+      emit(sock, Server.STATE, row.state);
+    }
+  } else {
+    for (const event of result.events ?? []) emit(io.to(channel(result.code)), Server.EVENT, event);
+    for (const row of result.states ?? []) {
+      emit(io.sockets.sockets.get(row.socketId), Server.STATE, row.state);
+    }
+  }
+
+  if (result.over) emit(io.to(channel(result.code)), Server.OVER, result.over);
+  for (const event of result.fullLog ?? result.events ?? []) {
+    if (event?.text) console.log(`[coup ${result.code}] ${event.text}`);
+  }
+  const pacing = result.fullLog ? [] : (result.events ?? []);
+  scheduleBots(store, result.code, (next) => pushMatch(io, store, next), pacing);
+}
+
+function fail(socket, ack, err) {
+  const message = isRejection(err) ? err.message : "Something went wrong.";
+  const code = socket.data.code ? ` ${socket.data.code}` : "";
+  console.log(`[coup${code}] rejected: ${message}`);
+  if (!isRejection(err)) console.error(err);
+  emit(socket, Server.REJECTED, { message });
+  ack({ ok: false, error: message });
+}
+
+function emit(target, event, payload) {
+  if (!target) return;
+  logJson("->", event, payload);
+  target.emit(event, payload);
+}
+
+function logJson(direction, event, payload) {
+  console.log(`[coup ${direction}] ${event} ${JSON.stringify(payload ?? null)}`);
+}
+
+function seatName(store, result) {
+  const room = store.peek(result.code);
+  return room?.players[result.seat]?.name ?? "a player";
+}
+
+function normalize(payload, ack) {
+  if (typeof payload === "function") return [{}, payload];
+  const data = payload && typeof payload === "object" ? payload : {};
+  const done = typeof ack === "function"
+    ? (body) => {
+        logJson("->", "ack", body);
+        ack(body);
+      }
+    : () => {};
+  return [data, done];
+}

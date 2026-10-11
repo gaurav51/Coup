@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using Coup.Core;
 using Coup.AI;
+using Coup.Net;
 
 namespace Coup.Game
 {
@@ -23,6 +24,13 @@ namespace Coup.Game
         [Header("Pacing (seconds)")]
         public float botThinkTime = 0.9f;
         public float resolveBeat = 0.45f;
+
+        [Header("Online")]
+        public bool playOnline = true;
+        public string serverUrl = "http://localhost:3000";
+        public string onlineName = "You";
+        public string joinCode = "";
+        public bool autoStartOnline = true;
 
         public CoupGame Game { get; private set; }
 
@@ -43,13 +51,71 @@ namespace Coup.Game
         /// a second prompt after everyone else has passed.
         /// </summary>
         private Role? _queuedBlock;
+        private OnlineSession _online;
+        private int _lastServerEvent;
 
         public bool IsHumanTurn =>
-            Game != null && Game.Phase != GamePhase.GameOver && _driver.SeatToAct() == humanSeat;
+            Game != null && Game.Phase != GamePhase.GameOver &&
+            _driver != null && _driver.SeatToAct() == humanSeat;
 
         public GameView HumanView => Game?.ViewFor(humanSeat);
 
-        private void Start() => StartMatch();
+        private void Start()
+        {
+            if (playOnline) BeginOnline();
+            else StartMatch();
+        }
+
+        private void Update() => _online?.Pump();
+
+        private void OnDestroy()
+        {
+            _online?.Dispose();
+            _online = null;
+        }
+
+        private void BeginOnline()
+        {
+            _online?.Dispose();
+            _online = new OnlineSession(this);
+            _online.Begin();
+        }
+
+        /// <summary>Drops the server session and deals a match on this device.</summary>
+        public void PlayOffline()
+        {
+            _online?.Dispose();
+            _online = null;
+            playOnline = false;
+            StartMatch();
+        }
+
+        public void ShowServerState(JsonValue state, List<JsonValue> openingLog)
+        {
+            if (state == null) return;
+            var view = RemoteTable.Read(state);
+            if (view.Seats == null || view.Seats.Count < 2) return;
+
+            humanSeat = state.Int("you", 0);
+            playerCount = view.Seats.Count;
+            if (Game == null || Game.Players.Count != view.Seats.Count)
+                Game = CoupGame.FromPresentation(view);
+            else
+                Game.Apply(view);
+
+            StateChanged?.Invoke();
+            if (openingLog == null) return;
+            for (var i = 0; i < openingLog.Count; i++) ShowServerEvent(openingLog[i]);
+        }
+
+        public void ShowServerEvent(JsonValue payload)
+        {
+            if (payload == null || Game == null) return;
+            var seq = RemoteTable.Sequence(payload);
+            if (seq > 0 && seq <= _lastServerEvent) return;
+            if (seq > _lastServerEvent) _lastServerEvent = seq;
+            EventOccurred?.Invoke(RemoteTable.ReadEvent(payload));
+        }
 
         public void StartMatch()
         {
@@ -131,17 +197,39 @@ namespace Coup.Game
 
         // ------------------------------------------------------------ human input
 
-        public void HumanDeclare(ActionKind kind, int target = -1) =>
-            Submit(() => Game.Declare(humanSeat, kind, target));
-
-        public void HumanChallenge() => Submit(() =>
+        public void HumanDeclare(ActionKind kind, int target = -1)
         {
-            if (Game.Phase == GamePhase.AwaitingBlockChallenge) Game.ChallengeBlock(humanSeat);
-            else Game.Challenge(humanSeat);
-        });
+            if (_online != null)
+            {
+                _online.Declare(kind, target);
+                return;
+            }
+
+            Submit(() => Game.Declare(humanSeat, kind, target));
+        }
+
+        public void HumanChallenge()
+        {
+            if (_online != null)
+            {
+                _online.Challenge();
+                return;
+            }
+
+            Submit(() =>
+            {
+                if (Game.Phase == GamePhase.AwaitingBlockChallenge) Game.ChallengeBlock(humanSeat);
+                else Game.Challenge(humanSeat);
+            });
+        }
 
         public void HumanBlock(Role role)
         {
+            if (_online != null)
+            {
+                _online.Block(role);
+                return;
+            }
             if (Game == null || !Game.PendingActionKind.HasValue) return;
             if (!Rules.CanBlockWith(Game.PendingActionKind.Value, role)) return;
 
@@ -188,21 +276,46 @@ namespace Coup.Game
             _queuedBlock = null;
         }
 
-        public void HumanPass() => Submit(() =>
+        public void HumanPass()
         {
-            switch (Game.Phase)
+            if (_online != null)
             {
-                case GamePhase.AwaitingChallenge: Game.PassChallenge(humanSeat); break;
-                case GamePhase.AwaitingBlock: Game.PassBlock(humanSeat); break;
-                case GamePhase.AwaitingBlockChallenge: Game.PassBlockChallenge(humanSeat); break;
+                _online.Pass();
+                return;
             }
-        });
 
-        public void HumanLoseInfluence(Role role) =>
+            Submit(() =>
+            {
+                switch (Game.Phase)
+                {
+                    case GamePhase.AwaitingChallenge: Game.PassChallenge(humanSeat); break;
+                    case GamePhase.AwaitingBlock: Game.PassBlock(humanSeat); break;
+                    case GamePhase.AwaitingBlockChallenge: Game.PassBlockChallenge(humanSeat); break;
+                }
+            });
+        }
+
+        public void HumanLoseInfluence(Role role)
+        {
+            if (_online != null)
+            {
+                _online.Lose(role);
+                return;
+            }
+
             Submit(() => Game.ChooseInfluenceToLose(humanSeat, role));
+        }
 
-        public void HumanExchangeKeep(IReadOnlyList<Role> keep) =>
+        public void HumanExchangeKeep(IReadOnlyList<Role> keep)
+        {
+            if (_online != null)
+            {
+                _online.Exchange(keep);
+                return;
+            }
+
             Submit(() => Game.ChooseExchangeKeep(keep));
+        }
 
         /// <summary>
         /// Applies a human decision. Illegal input is reported rather than thrown at

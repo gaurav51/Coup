@@ -51,7 +51,8 @@ namespace Coup.Core
 
         /// <summary>Turns begun so far. Lets agents notice a game that is dragging.</summary>
         public int TurnNumber { get; private set; }
-        public int DeckCount => _deck.Count;
+        private int? _presentedDeckCount;
+        public int DeckCount => _presentedDeckCount ?? _deck.Count;
 
         /// <summary>
         /// Every copy of a role across hands, revealed cards, the deck and an
@@ -712,6 +713,88 @@ namespace Coup.Core
                 PlayerIndex = player,
                 Amount = delta
             });
+        }
+
+        /// <summary>
+        /// Overwrites the visible board with a server snapshot. The server remains
+        /// the rules authority; this only lets the table draw what that seat may see.
+        /// </summary>
+        public void Apply(TablePresentation view)
+        {
+            if (view?.Seats == null || view.Seats.Count != _players.Count)
+                throw new InvalidOperationException("The server table does not match this game.");
+
+            for (var i = 0; i < _players.Count; i++)
+            {
+                var seat = view.Seats[i];
+                var player = _players[i];
+                if (!string.IsNullOrEmpty(seat.Name)) player.Name = seat.Name;
+                player.Coins = seat.Coins;
+
+                var hidden = seat.Hidden;
+                if (hidden == null)
+                {
+                    hidden = new List<Role>(seat.HiddenCount);
+                    for (var c = 0; c < seat.HiddenCount; c++) hidden.Add(Role.Ambassador);
+                }
+
+                player.Show(hidden, seat.Revealed ?? new List<Role>());
+            }
+
+            Phase = view.Phase;
+            CurrentPlayerIndex = view.CurrentPlayer;
+            TurnNumber = view.Turn;
+            _presentedDeckCount = view.DeckCount;
+
+            if (view.Action.HasValue)
+            {
+                _pending = new PendingAction
+                {
+                    ActorIndex = view.Actor,
+                    Kind = view.Action.Value,
+                    TargetIndex = view.Target,
+                    ClaimedRole = view.Claim,
+                    BlockerIndex = view.Blocker,
+                    BlockClaim = view.BlockClaim
+                };
+            }
+            else
+            {
+                _pending = null;
+            }
+
+            _responders.Clear();
+            if (view.Waiting != null)
+                for (var i = 0; i < view.Waiting.Count; i++) _responders.Add(view.Waiting[i]);
+
+            _pendingLosses.Clear();
+            if (Phase == GamePhase.AwaitingInfluenceLoss && view.Loser >= 0)
+                _pendingLosses.Enqueue((view.Loser, view.LossReason ?? LossReason.Couped));
+
+            _exchangeDrawn.Clear();
+            _exchangeKeepCount = 0;
+            if (Phase == GamePhase.AwaitingExchangeSelection && view.ExchangePool != null && _pending != null)
+            {
+                var pool = new List<Role>(view.ExchangePool);
+                var hand = _players[_pending.ActorIndex].Influence;
+                for (var i = 0; i < hand.Count; i++) pool.Remove(hand[i]);
+                _exchangeDrawn.AddRange(pool);
+                _exchangeKeepCount = view.ExchangeKeep;
+            }
+        }
+
+        public static CoupGame FromPresentation(TablePresentation view)
+        {
+            if (view?.Seats == null || view.Seats.Count < 2)
+                throw new ArgumentException("Coup needs at least two players.", nameof(view));
+
+            var names = new List<string>(view.Seats.Count);
+            for (var i = 0; i < view.Seats.Count; i++)
+                names.Add(string.IsNullOrEmpty(view.Seats[i].Name) ? $"P{i}" : view.Seats[i].Name);
+
+            var game = new CoupGame(names, 1);
+            game.Apply(view);
+            return game;
         }
 
         private void RequirePhase(GamePhase expected)

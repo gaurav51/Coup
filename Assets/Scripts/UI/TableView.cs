@@ -512,6 +512,7 @@ namespace Coup.Game.UI
             var game = match?.Game;
             if (game == null) return;
 
+            EnsureSeats(game);
             RefreshOpponents(game);
             RefreshCentre(game);
             RefreshHud(game);
@@ -520,6 +521,22 @@ namespace Coup.Game.UI
             RefreshStatus(game);
             RefreshModal(game);
             PlayOpening();
+        }
+
+        private void EnsureSeats(CoupGame game)
+        {
+            if (match == null || _panels.Count == 0) return;
+            var seats = Enumerable.Range(0, game.Players.Count).Where(i => i != match.humanSeat).ToList();
+            for (var i = 0; i < _panels.Count; i++)
+            {
+                var panel = _panels[i];
+                var show = i < seats.Count;
+                if (panel.gameObject.activeSelf != show) panel.gameObject.SetActive(show);
+                if (!show || panel.Seat == seats[i]) continue;
+                panel.ClearHooks();
+                panel.Initialise(seats[i], art, cardPrefab);
+                panel.Clicked += OnOpponentClicked;
+            }
         }
 
         private void RefreshOpponents(CoupGame game)

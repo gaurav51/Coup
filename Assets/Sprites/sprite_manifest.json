@@ -1,0 +1,227 @@
+[
+  {
+    "sprite": "01_Individual_Sprites/HUD/Round_Status_Blank.png",
+    "pixel_size": [
+      2071,
+      584
+    ],
+    "has_text": false,
+    "source": "ornate_golden_marble_ui_banner.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Settings_Button.png",
+    "pixel_size": [
+      730,
+      697
+    ],
+    "has_text": false,
+    "source": "ornate_gold_gear_and_menu_ui_buttons.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Menu_Button.png",
+    "pixel_size": [
+      733,
+      697
+    ],
+    "has_text": false,
+    "source": "ornate_gold_gear_and_menu_ui_buttons.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/HUD/Opponent_Info_Frame_With_Transparent_Avatar.png",
+    "pixel_size": [
+      665,
+      647
+    ],
+    "has_text": false,
+    "source": "ornate_navy_and_gold_player_panel.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Opponent_Card_Back_1.png",
+    "pixel_size": [
+      305,
+      415
+    ],
+    "has_text": false,
+    "source": "ornate_navy_and_gold_player_panel.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Opponent_Card_Back_2.png",
+    "pixel_size": [
+      306,
+      415
+    ],
+    "has_text": false,
+    "source": "ornate_navy_and_gold_player_panel.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/HUD/Local_Player_HUD_Frame.png",
+    "pixel_size": [
+      2128,
+      681
+    ],
+    "has_text": false,
+    "source": "ornate_fantasy_game_hud_panel.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Draw_Deck_With_Blank_Labels.png",
+    "pixel_size": [
+      703,
+      855
+    ],
+    "has_text": false,
+    "source": "ornate_navy_and_gold_card_deck_widgets.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Discard_Deck_With_Blank_Labels.png",
+    "pixel_size": [
+      702,
+      851
+    ],
+    "has_text": false,
+    "source": "ornate_navy_and_gold_card_deck_widgets.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Coins/Coin_Pile_With_Blank_Labels.png",
+    "pixel_size": [
+      1086,
+      1098
+    ],
+    "has_text": false,
+    "source": "luxury_gold_coin_pile_with_empty_labels.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Reusable_Blank_Button_Background.png",
+    "pixel_size": [
+      1482,
+      670
+    ],
+    "has_text": false,
+    "source": "ornate_navy_marble_gold_ui_panel.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Income.png",
+    "pixel_size": [
+      367,
+      356
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Foreign_Aid.png",
+    "pixel_size": [
+      366,
+      356
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Tax.png",
+    "pixel_size": [
+      364,
+      356
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Steal.png",
+    "pixel_size": [
+      365,
+      355
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Assassinate.png",
+    "pixel_size": [
+      390,
+      383
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Exchange.png",
+    "pixel_size": [
+      395,
+      383
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Action_Coup.png",
+    "pixel_size": [
+      391,
+      383
+    ],
+    "has_text": false,
+    "source": "gilded_fantasy_strategy_icon_set.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Block_Button.png",
+    "pixel_size": [
+      884,
+      399
+    ],
+    "has_text": false,
+    "source": "ornate_fantasy_ui_button_pair.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Buttons/Challenge_Button.png",
+    "pixel_size": [
+      884,
+      399
+    ],
+    "has_text": false,
+    "source": "ornate_fantasy_ui_button_pair.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Card_Back.png",
+    "pixel_size": [
+      484,
+      711
+    ],
+    "has_text": false,
+    "source": "ornate_fantasy_card_asset_trio.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Card_Frame_Blue_Blank.png",
+    "pixel_size": [
+      483,
+      711
+    ],
+    "has_text": false,
+    "source": "ornate_fantasy_card_asset_trio.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Cards/Card_Frame_Purple_Blank.png",
+    "pixel_size": [
+      488,
+      711
+    ],
+    "has_text": false,
+    "source": "ornate_fantasy_card_asset_trio.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/HUD/Player_Frame_Alt_Blank.png",
+    "pixel_size": [
+      1200,
+      410
+    ],
+    "has_text": false,
+    "source": "coup_player_panel_BLANK_transparent.png"
+  },
+  {
+    "sprite": "01_Individual_Sprites/Coins/Single_Gold_Coin.png",
+    "pixel_size": [
+      400,
+      400
+    ],
+    "has_text": false,
+    "source": "newly authored symbol asset"
+  }
+]

@@ -1,0 +1,14 @@
+{
+    "name": "Coup.AI",
+    "rootNamespace": "Coup.AI",
+    "references": ["Coup.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

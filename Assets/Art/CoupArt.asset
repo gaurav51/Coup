@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5f7f04b40267439ca98609360005e43, type: 3}
+  m_Name: CoupArt
+  m_EditorClassIdentifier: Assembly-CSharp::Coup.Game.CoupArt
+  roles:
+  - role: 0
+    displayName: DUKE
+    ability: 'Take 3 coins.
+
+      Blocks foreign aid.'
+    accent: {r: 0.48235294, g: 0.24705882, b: 0.627451, a: 1}
+    cardFace: {fileID: 21300000, guid: 3ccf6b3d8edb74684bdef5c6ec9a3889, type: 3}
+    portrait: {fileID: 21300000, guid: 3ccf6b3d8edb74684bdef5c6ec9a3889, type: 3}
+    backdrop: {fileID: 21300000, guid: b87ce4abb608c409faddd8010aa9fb2f, type: 3}
+  - role: 1
+    displayName: CAPTAIN
+    ability: 'Steal 2 coins.
+
+      Blocks stealing.'
+    accent: {r: 0.11764706, g: 0.22745098, b: 0.43137255, a: 1}
+    cardFace: {fileID: 21300000, guid: 2952ab2d5d20946f7bde17864d605b93, type: 3}
+    portrait: {fileID: 21300000, guid: 2952ab2d5d20946f7bde17864d605b93, type: 3}
+    backdrop: {fileID: 21300000, guid: 75724effef5ba4f428d6edaaf04efc8d, type: 3}
+  - role: 2
+    displayName: ASSASSIN
+    ability: Pay 3 coins to assassinate.
+    accent: {r: 0.101960786, g: 0.12156863, b: 0.21960784, a: 1}
+    cardFace: {fileID: 21300000, guid: 73aec43b433994a3286a6b5396a2c3b0, type: 3}
+    portrait: {fileID: 21300000, guid: 73aec43b433994a3286a6b5396a2c3b0, type: 3}
+    backdrop: {fileID: 21300000, guid: cb9aea5d51e0a4b2f8b8b6cc9a4cf289, type: 3}
+  - role: 3
+    displayName: CONTESSA
+    ability: Blocks assassination.
+    accent: {r: 0.70980394, g: 0.14117648, b: 0.1882353, a: 1}
+    cardFace: {fileID: 21300000, guid: e941dd5295e504e319af7045129e036f, type: 3}
+    portrait: {fileID: 21300000, guid: e941dd5295e504e319af7045129e036f, type: 3}
+    backdrop: {fileID: 21300000, guid: b57829f874f9341f58c6560f4c7c5f27, type: 3}
+  - role: 4
+    displayName: AMBASSADOR
+    ability: 'Exchange cards.
+
+      Blocks stealing.'
+    accent: {r: 0.83137256, g: 0.4745098, b: 0.11764706, a: 1}
+    cardFace: {fileID: 21300000, guid: 30ad8003d6af34f05aa00e6485245fd1, type: 3}
+    portrait: {fileID: 21300000, guid: 30ad8003d6af34f05aa00e6485245fd1, type: 3}
+    backdrop: {fileID: 21300000, guid: 3f44781cc3af645caaa4455ed8da69e7, type: 3}
+  actions:
+  - action: 0
+    label: Income
+    subtitle: +1 Coin
+    icon: {fileID: 21300000, guid: b7cb1223b7aef47e1a0a12d4184dcae5, type: 3}
+  - action: 1
+    label: Foreign Aid
+    subtitle: +2 Coins
+    icon: {fileID: 21300000, guid: 97c7042bf25154cc1bf54c60406f4621, type: 3}
+  - action: 3
+    label: Tax
+    subtitle: Take 3 Coins
+    icon: {fileID: 21300000, guid: 51d0eb72fe4264f49b844a41e615db68, type: 3}
+  - action: 4
+    label: Steal
+    subtitle: Take 2 Coins
+    icon: {fileID: 21300000, guid: d93cb680bc8ac416b9b5d5ca7503c363, type: 3}
+  - action: 5
+    label: Assassinate
+    subtitle: Pay 3 Coins
+    icon: {fileID: 21300000, guid: 8d52fdb05b00c40988f07785867c7beb, type: 3}
+  - action: 6
+    label: Exchange
+    subtitle: Swap Cards
+    icon: {fileID: 21300000, guid: 2f26d37e424be41d3860b948ffe9e619, type: 3}
+  - action: 2
+    label: Coup
+    subtitle: Pay 7 Coins
+    icon: {fileID: 21300000, guid: bcde6719aaa904fa0b269258cb2b5d95, type: 3}
+  cardBack: {fileID: 21300000, guid: c6eb9b9cb897c4184b7b481f6ec46a9c, type: 3}
+  opponentCardBack: {fileID: 21300000, guid: e5b5a5e29c84041e8b5d2878fb9b427f, type: 3}
+  drawDeck: {fileID: 21300000, guid: 4cdd1437d78a4485b8dab25e9002fb98, type: 3}
+  discardDeck: {fileID: 21300000, guid: d1440f7f640e84a858d66a216538e46f, type: 3}
+  tableBackground: {fileID: 21300000, guid: c29b2f6f290f54c54848b8884487b85e, type: 3}
+  coin: {fileID: 21300000, guid: 3cf41a273eb4a44c7a4c27be0db4216d, type: 3}
+  coinPile: {fileID: 21300000, guid: 3c6803bb0600c46298511a7a12789670, type: 3}
+  roundedPanel: {fileID: 21300000, guid: 3abff22c911094e66b68e11f0fee846e, type: 3}
+  roundedBorder: {fileID: 21300000, guid: 607f19e87843046db81175163208b1cb, type: 3}
+  bottomScrim: {fileID: 21300000, guid: 3d1e119cc36704265ab502c20f40b178, type: 3}
+  vfxSpark: {fileID: 21300000, guid: 2adff46708cac4112b85dba9fd7210b5, type: 3}
+  vfxRing: {fileID: 21300000, guid: cc0a053be03bd40868558bf0a22f11c7, type: 3}
+  opponentFrame: {fileID: 21300000, guid: bdb1797261d7d44aeaca0402a923af42, type: 3}
+  localHudFrame: {fileID: 21300000, guid: c1b912cdc03ba490cb6684441ef0ff20, type: 3}
+  roundBanner: {fileID: 21300000, guid: f3ed02a906b4f44deac1c185f668cfa6, type: 3}
+  blankButton: {fileID: 21300000, guid: bc93bdb6bbbfb4b05973208cb4cdccd4, type: 3}
+  blockButton: {fileID: 21300000, guid: aba0955c147ea46b1a3478955ff5b703, type: 3}
+  challengeButton: {fileID: 21300000, guid: 777ed323ee32346569fa3f87e8beecc8, type: 3}
+  menuButton: {fileID: 21300000, guid: 1b9573bd9d5ef4e12bfa8117f8597ba0, type: 3}
+  settingsButton: {fileID: 21300000, guid: b14b5edd1a95443958f137a025c7fce2, type: 3}

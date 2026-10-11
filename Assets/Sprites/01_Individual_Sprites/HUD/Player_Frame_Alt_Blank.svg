@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="410" viewBox="0 0 1200 410">
+<defs>
+ <linearGradient id="gold" x1="0" x2="0.15" y1="0" y2="1"><stop offset="0" stop-color="#ffedac"/><stop offset="0.16" stop-color="#b67b25"/><stop offset="0.35" stop-color="#f9d481"/><stop offset="0.59" stop-color="#81511b"/><stop offset="0.79" stop-color="#eac071"/><stop offset="1" stop-color="#8e5c28"/></linearGradient>
+ <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#183959"/><stop offset="0.45" stop-color="#091a30"/><stop offset="1" stop-color="#050f1f"/></linearGradient>
+ <linearGradient id="ring" x1="0" x2="0.75" y1="0" y2="1"><stop stop-color="#fff1b7"/><stop offset="0.27" stop-color="#ac6d29"/><stop offset="0.59" stop-color="#ffe6a4"/><stop offset="1" stop-color="#875421"/></linearGradient>
+ <filter id="shadow" x="-20%" y="-40%" width="150%" height="200%"><feGaussianBlur stdDeviation="13"/></filter>
+ <clipPath id="cutRing"><path fill-rule="evenodd" d="M204,204m-180,0a180,180 0 1,0 360,0a180,180 0 1,0 -360,0 M204,204m-146,0a146,146 0 1,1 292,0a146,146 0 1,1 -292,0"/></clipPath>
+<mask id="punch"><rect width="1200" height="410" fill="white"/><circle cx="204" cy="204" r="145" fill="black"/></mask></defs>
+<g mask="url(#punch)"><!-- isolated reusable panel, no text or coin values -->
+<path d="M255 82H1114L1167 128V282L1113 332H258L220 296V117Z" fill="#000000" opacity=".24" transform="translate(9 14)" filter="url(#shadow)"/>
+<path d="M258 73H1111L1172 120V283L1112 338H258L218 292V113Z" fill="url(#gold)"/>
+<path d="M269 87H1103L1151 127V274L1102 322H269L238 288V123Z" fill="#30231b"/>
+<path d="M275 94H1097L1142 133V267L1096 314H275L247 281V129Z" fill="url(#blue)" stroke="#ffd98e" stroke-width="3"/>
+<path d="M291 112H1087L1126 142V258L1086 298H291L266 276V142Z" fill="none" stroke="#8c662e" stroke-width="2" opacity=".85"/>
+<path d="M397 138H1040" stroke="#e8be69" opacity=".26" stroke-width="2"/>
+<path d="M395 275H1040" stroke="#e8be69" opacity=".22" stroke-width="2"/>
+<path d="M1118 126l9 8-9 8-9-8z" fill="#fae5a8"/>
+<path d="M1118 262l9 8-9 8-9-8z" fill="#fae5a8"/>
+<!-- coin icon and player names belong in Unity, so they're not baked in -->
+<!-- gold avatar circle with fully transparent inner opening -->
+<circle cx="204" cy="204" r="188" fill="#000" opacity=".23" filter="url(#shadow)"/>
+<circle cx="204" cy="204" r="185" fill="url(#gold)"/>
+<circle cx="204" cy="204" r="171" fill="#071525"/>
+<circle cx="204" cy="204" r="159" fill="url(#ring)"/>
+<circle cx="204" cy="204" r="146" fill="#000" opacity="0"/>
+<!-- explicit interior hole by using mask applied to the whole picture via root mask? Overlay frame ring instead; SVG alpha mask below -->
+<path d="M204 24L214 41 204 58 194 41Z" fill="#ffe9a4"/>
+<path d="M204 350L214 367 204 384 194 367Z" fill="#ffe9a4"/>
+<path d="M24 204L41 194 58 204 41 214Z" fill="#ffe9a4"/>
+<path d="M350 204L367 194 384 204 367 214Z" fill="#ffe9a4"/>
+</g></svg>

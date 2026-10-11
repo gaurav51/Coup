@@ -1,0 +1,1005 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Coup.Game.UI
+{
+    /// <summary>
+    /// The effects layer. Everything here is plain UI Images on their own canvas
+    /// layer, which is what a Screen Space - Overlay canvas can actually composite —
+    /// a ParticleSystem would sort behind or in front of the whole HUD rather than
+    /// between elements. Objects are pooled, so a long match does not churn garbage.
+    /// </summary>
+    public class UiVfx : MonoBehaviour
+    {
+        private RectTransform _root;
+        private CoupArt _art;
+        private Material _glow;
+
+        [System.NonSerialized] private Sprite[] _triangles;
+        [System.NonSerialized] private Texture2D[] _triangleTex;
+        [System.NonSerialized] private Sprite _vein;
+        [System.NonSerialized] private Texture2D _veinTex;
+        [System.NonSerialized] private Sprite _bar;
+        [System.NonSerialized] private Texture2D _barTex;
+
+        private readonly List<Image> _pool = new();
+        private readonly List<Active> _live = new();
+
+        private struct Active
+        {
+            public Image Image;
+            public RectTransform Rect;
+            public Vector2 From;
+            public Vector2 To;
+            public Vector2 Velocity;
+            public float Gravity;
+            public float Start;
+            public float Duration;
+            public float StartScale;
+            public float EndScale;
+            public Color StartColour;
+            public float Arc;        // hop height on the eased path
+            public bool Ballistic;   // arcs under gravity rather than easing to a point
+            public float Angle;      // starting rotation, degrees
+            public float Spin;       // extra degrees per second
+            public float Stretch;    // length along the flight, 1 is a round mote
+            public bool Align;       // point the streak along its velocity
+            public float Heat;       // how white the spark burns before it cools
+            public float Hold;       // fraction of the life spent at full brightness
+        }
+
+        private BloodStream _blood;
+        public bool HasBloodLine => _blood != null;
+
+        private sealed class BloodStream
+        {
+            public Vector2 From;
+            public Vector2 To;
+            public readonly List<Image> Segments = new();
+            public readonly List<float> Twist = new();
+            public readonly List<Image> Rungs = new();
+            public readonly List<Image> Ribbons = new();
+            public Image Core;
+            public Image Halo;
+            public float FadeAt = -1f;
+            public bool HitOnFade;
+        }
+
+        /// <summary>The overlay cards and sparks are parented to, in this layer's space.</summary>
+        public RectTransform Layer => _root;
+
+        public void Build(RectTransform parent, CoupArt art, float scale = 1f)
+        {
+            _art = art;
+            var existing = parent.Find("Vfx") as RectTransform;
+            if (existing != null)
+                _root = existing;
+            else
+                _root = UIFactory.Rect("Vfx", parent, new Vector2(1080, 1920), Vector2.zero);
+
+            _root.localScale = Vector3.one * scale;
+            _root.SetAsLastSibling();          // draws above the HUD
+            var group = _root.GetComponent<CanvasGroup>();
+            if (group == null) group = UIFactory.Group(_root.gameObject);
+            group.blocksRaycasts = false;
+            group.interactable = false;
+
+            if (_glow == null)
+            {
+                var shader = Shader.Find("Coup/UI Additive");
+                if (shader != null) _glow = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            }
+
+            EnsureBloodArt();
+        }
+
+        private void OnDestroy()
+        {
+            if (_glow != null) Destroy(_glow);
+            if (_vein != null) Destroy(_vein);
+            if (_veinTex != null) Destroy(_veinTex);
+            if (_bar != null) Destroy(_bar);
+            if (_barTex != null) Destroy(_barTex);
+            if (_triangles != null)
+                for (var i = 0; i < _triangles.Length; i++)
+                    if (_triangles[i] != null) Destroy(_triangles[i]);
+            if (_triangleTex != null)
+                for (var i = 0; i < _triangleTex.Length; i++)
+                    if (_triangleTex[i] != null) Destroy(_triangleTex[i]);
+        }
+
+        // ------------------------------------------------------------- effects
+
+        /// <summary>Coins arcing from a source to a purse, or back into the pile.</summary>
+        public void CoinFly(Vector2 from, Vector2 to, int count = 6, float delay = 0f)
+        {
+            count = Mathf.Clamp(count, 1, 12);
+            for (var i = 0; i < count; i++)
+            {
+                var img = Take(_art != null ? _art.coin : null, 46f);
+                var jitter = new Vector2(Random.Range(-36f, 36f), Random.Range(-24f, 24f));
+
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = from + jitter,
+                    To = to,
+                    Start = Time.unscaledTime + delay + i * 0.05f,
+                    Duration = 0.62f,
+                    StartScale = 0.85f,
+                    EndScale = 0.65f,
+                    StartColour = Color.white,
+                    Arc = 150f
+                });
+            }
+        }
+
+        /// <summary>A scatter of glowing streaks, for an impact or a card leaving play.</summary>
+        public void Burst(Vector2 at, Color colour, int count = 14, float power = 420f)
+        {
+            count = Mathf.Clamp(count, 1, 40);
+            var spark = _art != null ? _art.vfxSpark : null;
+
+            for (var i = 0; i < count; i++)
+            {
+                var img = Take(spark, Random.Range(16f, 34f), glow: true);
+                var angle = Random.Range(0f, Mathf.PI * 2f);
+                var speed = power * Random.Range(0.4f, 1f);
+                var tint = Color.Lerp(colour, Color.white, Random.Range(0.2f, 0.7f));
+                tint.a = 1f;
+
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = at,
+                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed,
+                    Gravity = -620f,
+                    Start = Time.unscaledTime,
+                    Duration = Random.Range(0.62f, 1.05f),
+                    StartScale = 1f,
+                    EndScale = 0.12f,
+                    StartColour = tint,
+                    Ballistic = true,
+                    Align = true,
+                    Stretch = Random.Range(2.6f, 4.8f),
+                    Heat = Random.Range(0.4f, 0.9f),
+                    Hold = 0.06f
+                });
+            }
+
+            // A few round embers hang after the streaks have gone.
+            var motes = Mathf.Clamp(count / 3, 3, 8);
+            for (var i = 0; i < motes; i++)
+            {
+                var img = Take(spark, Random.Range(10f, 20f), glow: true);
+                var angle = Random.Range(0f, Mathf.PI * 2f);
+                var tint = colour;
+                tint.a = 0.85f;
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = at,
+                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * power * Random.Range(0.15f, 0.4f),
+                    Gravity = -180f,
+                    Start = Time.unscaledTime,
+                    Duration = Random.Range(0.55f, 0.9f),
+                    StartScale = 1f,
+                    EndScale = 0.2f,
+                    StartColour = tint,
+                    Ballistic = true,
+                    Heat = 0.25f,
+                    Hold = 0.15f
+                });
+            }
+        }
+
+        /// <summary>An expanding ring — reads as a shockwave on a challenge.</summary>
+        public void Ring(Vector2 at, Color colour, float size = 560f, float delay = 0f)
+        {
+            var img = Take(_art != null ? _art.vfxRing : null, size * 0.42f, glow: true);
+            var tint = Color.Lerp(colour, Color.white, 0.35f);
+            tint.a = 0.9f;
+            _live.Add(new Active
+            {
+                Image = img,
+                Rect = (RectTransform)img.transform,
+                From = at,
+                To = at,
+                Start = Time.unscaledTime + delay,
+                Duration = 0.62f,
+                StartScale = 0.35f,
+                EndScale = size / Mathf.Max(size * 0.42f, 1f),
+                StartColour = tint,
+                Heat = 0.5f,
+                Hold = 0.12f
+            });
+        }
+
+        /// <summary>A role hitting the table: a flash, a shockwave and a spray of streaks.</summary>
+        public void Impact(Vector2 at, Color colour)
+        {
+            var hot = Color.Lerp(colour, Color.white, 0.75f);
+            hot.a = 1f;
+            CoreFlash(at, hot);
+            Bloom(at, colour, 240f);
+            Ring(at, colour, 420f);
+            Ring(at, colour, 640f, 0.07f);
+            Burst(at, colour, 14, 500f);
+        }
+
+        /// <summary>A soft disc of the character's colour, the part that reads as the hit.</summary>
+        public void Bloom(Vector2 at, Color colour, float size = 340f)
+        {
+            var img = Take(_art != null ? _art.vfxSpark : null, size, glow: true);
+            var tint = colour;
+            tint.a = 0.55f;
+            _live.Add(new Active
+            {
+                Image = img,
+                Rect = (RectTransform)img.transform,
+                From = at,
+                To = at,
+                Start = Time.unscaledTime,
+                Duration = 0.72f,
+                StartScale = 0.2f,
+                EndScale = 1.35f,
+                StartColour = tint,
+                Heat = 0.35f,
+                Hold = 0.08f
+            });
+        }
+
+        /// <summary>A white-hot pop at the centre of a hit, gone before the streaks land.</summary>
+        private void CoreFlash(Vector2 at, Color colour)
+        {
+            var img = Take(_art != null ? _art.vfxSpark : null, 90f, glow: true);
+            _live.Add(new Active
+            {
+                Image = img,
+                Rect = (RectTransform)img.transform,
+                From = at,
+                To = at,
+                Start = Time.unscaledTime,
+                    Duration = 0.32f,
+                    StartScale = 0.35f,
+                    EndScale = 2.1f,
+                StartColour = colour,
+                Heat = 1f
+            });
+        }
+
+        /// <summary>Sparks that climb, for the Duke's purple flourish.</summary>
+        public void Rise(Vector2 at, Color colour, int count = 16)
+        {
+            count = Mathf.Clamp(count, 1, 28);
+            var spark = _art != null ? _art.vfxSpark : null;
+            Bloom(at + new Vector2(0f, 40f), colour, 200f);
+
+            for (var i = 0; i < count; i++)
+            {
+                var img = Take(spark, Random.Range(12f, 28f), glow: true);
+                var tint = Color.Lerp(colour, Color.white, Random.Range(0.15f, 0.55f));
+                tint.a = 0.95f;
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = at + new Vector2(Random.Range(-36f, 36f), Random.Range(-8f, 12f)),
+                    Velocity = new Vector2(Random.Range(-50f, 50f), Random.Range(180f, 520f)),
+                    Gravity = -160f,
+                    Start = Time.unscaledTime + i * 0.018f,
+                    Duration = Random.Range(0.7f, 1.15f),
+                    StartScale = 1f,
+                    EndScale = 0.15f,
+                    StartColour = tint,
+                    Ballistic = true,
+                    Align = true,
+                    Stretch = Random.Range(1.8f, 3.4f),
+                    Heat = Random.Range(0.2f, 0.6f),
+                    Hold = 0.12f
+                });
+            }
+        }
+
+        /// <summary>
+        /// Two seats leaning in on each other: a glowing beam, sparks from both
+        /// ends meeting in the middle, and a shock on each seat.
+        /// </summary>
+        public void Clash(Vector2 from, Vector2 to)
+        {
+            var mid = (from + to) * 0.5f;
+            var red = new Color(1f, 0.32f, 0.22f, 1f);
+            var gold = new Color(1f, 0.82f, 0.38f, 1f);
+
+            Beam(from, to, new Color(1f, 0.34f, 0.16f, 0.7f), 56f, 1.15f, 0.35f, glow: true);
+            Beam(from, to, new Color(1f, 0.95f, 0.75f, 1f), 10f, 1.15f, 0.4f, glow: true);
+            Streak(from, mid, red, 10);
+            Streak(to, mid, gold, 10);
+            Ring(from, red, 360f);
+            Ring(to, gold, 360f);
+            CoreFlash(mid, new Color(1f, 0.85f, 0.55f, 1f));
+            Bloom(mid, new Color(1f, 0.45f, 0.2f, 1f), 220f);
+            Burst(mid, new Color(1f, 0.62f, 0.28f, 1f), 12, 480f);
+        }
+
+        /// <summary>A short volley of sparks from one seat to another.</summary>
+        public void Streak(Vector2 from, Vector2 to, Color colour, int count = 8)
+        {
+            count = Mathf.Clamp(count, 1, 16);
+            var spark = _art != null ? _art.vfxSpark : null;
+            var aim = to - from;
+            var angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            if (aim.sqrMagnitude > 64f)
+                Beam(from, to, new Color(colour.r, colour.g, colour.b, 0.4f), 16f, 0.34f, 0.15f, glow: true);
+
+            for (var i = 0; i < count; i++)
+            {
+                var img = Take(spark, Random.Range(14f, 26f), glow: true);
+                var jitter = new Vector2(Random.Range(-14f, 14f), Random.Range(-14f, 14f));
+                var tint = Color.Lerp(colour, Color.white, Random.Range(0.25f, 0.7f));
+                tint.a = 1f;
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = from + jitter,
+                    To = to + jitter * 0.25f,
+                    Start = Time.unscaledTime + i * 0.028f,
+                    Duration = 0.42f,
+                    StartScale = 1f,
+                    EndScale = 0.35f,
+                    StartColour = tint,
+                    Arc = Random.Range(16f, 48f),
+                    Angle = angle,
+                    Stretch = Random.Range(3.2f, 5.4f),
+                    Heat = Random.Range(0.35f, 0.8f),
+                    Hold = 0.2f
+                });
+            }
+        }
+
+        /// <summary>A glowing bar between two points. The wide pass is the halo, the thin pass the core.</summary>
+        private void Beam(Vector2 from, Vector2 to, Color colour, float thickness, float duration, float hold, bool glow)
+        {
+            var aim = to - from;
+            if (aim.sqrMagnitude < 16f) return;
+
+            var img = Take(_art != null ? _art.vfxSpark : null, thickness, glow);
+            img.preserveAspect = false;
+            var rect = (RectTransform)img.transform;
+            rect.sizeDelta = new Vector2(aim.magnitude, thickness);
+            _live.Add(new Active
+            {
+                Image = img,
+                Rect = rect,
+                From = (from + to) * 0.5f,
+                To = (from + to) * 0.5f,
+                Start = Time.unscaledTime,
+                Duration = duration,
+                StartScale = 1f,
+                EndScale = 1f,
+                StartColour = colour,
+                Angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg,
+                Heat = glow ? 0.4f : 0f,
+                Hold = hold
+            });
+        }
+
+        /// <summary>
+        /// A soft red line between two seats, with blood triangles spiraling around it.
+        /// It stays up while the assassination is still in question, and
+        /// <see cref="ShatterBloodLine"/> breaks it apart.
+        /// </summary>
+        public void BeginBloodLine(Vector2 from, Vector2 to)
+        {
+            EndBloodLine(false);
+            if (Vector2.Distance(from, to) < 8f) return;
+
+            EnsureBloodArt();
+            var length = Vector2.Distance(from, to);
+            var pairs = Mathf.Clamp(Mathf.RoundToInt(HelixTurns(length) * 7f), 16, 48);
+            var line = new BloodStream { From = from, To = to };
+            var aim = to - from;
+            var angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+
+            line.Core = Vein(aim.magnitude, 16f, angle, (from + to) * 0.5f, new Color(0.86f, 0.05f, 0.08f, 0.9f));
+
+            for (var i = 0; i < pairs * 2; i++)
+            {
+                var img = Take(RandomTriangle(), Random.Range(15f, 20f));
+                var spin = Random.Range(0f, 360f);
+                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
+                line.Segments.Add(img);
+                line.Twist.Add(spin);
+            }
+
+            for (var i = 0; i < pairs; i++)
+                line.Rungs.Add(Bar());
+            for (var i = 0; i < (pairs - 1) * 2; i++)
+                line.Ribbons.Add(Bar());
+
+            _blood = line;
+            TickBlood(Time.unscaledTime);
+        }
+
+        /// <summary>The Contessa stops the shot: the line falls apart into beads.</summary>
+        public void ShatterBloodLine()
+        {
+            if (_blood == null) return;
+            var line = _blood;
+            _blood = null;
+
+            var dir = line.To - line.From;
+            var len = Mathf.Max(dir.magnitude, 1f);
+            var along = dir / len;
+            var normal = new Vector2(-along.y, along.x);
+            BloodSplash(Vector2.Lerp(line.From, line.To, 0.5f), 10, 340f);
+            RetireCore(line, 0.08f);
+            RetireLinks(line, 0.12f);
+
+            foreach (var img in line.Segments)
+            {
+                if (img == null) continue;
+                var rt = (RectTransform)img.transform;
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = rt,
+                    From = rt.anchoredPosition,
+                    Velocity = normal * Random.Range(-360f, 360f) + along * Random.Range(-120f, 120f) +
+                               new Vector2(0f, Random.Range(40f, 220f)),
+                    Gravity = -420f,
+                    Start = Time.unscaledTime,
+                    Duration = Random.Range(0.7f, 0.95f),
+                    StartScale = rt.localScale.x,
+                    EndScale = 0.55f,
+                    StartColour = img.color,
+                    Ballistic = true,
+                    Align = false,
+                    Stretch = 1f,
+                    Hold = 0.35f,
+                    Angle = rt.localEulerAngles.z,
+                    Spin = Random.Range(-80f, 80f)
+                });
+            }
+        }
+
+        /// <summary>Lets the line finish its beat, then retires it. A hit bursts on the target.</summary>
+        public void ReleaseBloodLine(bool hit, float delay)
+        {
+            if (_blood == null) return;
+            _blood.FadeAt = Time.unscaledTime + Mathf.Max(0f, delay);
+            _blood.HitOnFade = hit;
+        }
+
+        /// <summary>The shot is over. Beads fade where they are; a hit also bursts on the target.</summary>
+        public void EndBloodLine(bool hit)
+        {
+            if (_blood == null) return;
+            var line = _blood;
+            _blood = null;
+            if (hit) BloodSplash(line.To, 14, 460f);
+            RetireCore(line, 0.2f);
+            RetireLinks(line, 0.2f);
+
+            foreach (var img in line.Segments)
+            {
+                if (img == null) continue;
+                var rt = (RectTransform)img.transform;
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = rt,
+                    From = rt.anchoredPosition,
+                    To = rt.anchoredPosition,
+                    Start = Time.unscaledTime,
+                    Duration = 0.28f,
+                    StartScale = rt.localScale.x,
+                    EndScale = 0.85f,
+                    StartColour = img.color,
+                    Angle = rt.localEulerAngles.z
+                });
+            }
+        }
+
+        /// <summary>A brief full-screen wash, for eliminations and the win screen.</summary>
+        public void Flash(Color colour, float duration = 0.35f)
+        {
+            var img = Take(null, 0f);
+            var rect = (RectTransform)img.transform;
+            rect.sizeDelta = new Vector2(1800, 2800);
+            rect.anchoredPosition = Vector2.zero;
+            img.sprite = null;
+
+            _live.Add(new Active
+            {
+                Image = img,
+                Rect = rect,
+                From = Vector2.zero,
+                To = Vector2.zero,
+                Start = Time.unscaledTime,
+                Duration = duration,
+                StartScale = 1f,
+                EndScale = 1f,
+                StartColour = colour
+            });
+        }
+
+        // ------------------------------------------------------------- driving
+
+        private void Update()
+        {
+            var now = Time.unscaledTime;
+            TickBlood(now);
+            if (_live.Count == 0) return;
+
+            for (var i = _live.Count - 1; i >= 0; i--)
+            {
+                var a = _live[i];
+                if (now < a.Start) continue;
+
+                var t = (now - a.Start) / Mathf.Max(a.Duration, 0.01f);
+                if (t >= 1f)
+                {
+                    Release(a.Image);
+                    _live.RemoveAt(i);
+                    continue;
+                }
+
+                var elapsed = now - a.Start;
+                if (a.Ballistic)
+                {
+                    a.Rect.anchoredPosition = a.From + a.Velocity * elapsed +
+                                              0.5f * new Vector2(0f, a.Gravity) * elapsed * elapsed;
+                }
+                else
+                {
+                    var eased = 1f - Mathf.Pow(1f - t, 3f);
+                    var pos = Vector2.Lerp(a.From, a.To, eased);
+                    if (a.Arc > 0f) pos.y += Mathf.Sin(t * Mathf.PI) * a.Arc;
+                    a.Rect.anchoredPosition = pos;
+                }
+
+                var scale = Mathf.Lerp(a.StartScale, a.EndScale, t);
+                if (a.Align && a.Ballistic)
+                {
+                    var vel = a.Velocity + new Vector2(0f, a.Gravity) * elapsed;
+                    if (vel.sqrMagnitude > 9f)
+                        a.Angle = Mathf.Atan2(vel.y, vel.x) * Mathf.Rad2Deg;
+                }
+
+                var stretch = a.Stretch < 1f ? 1f : a.Stretch;
+                a.Rect.localScale = new Vector3(scale * stretch, scale, 1f);
+                a.Rect.localEulerAngles = new Vector3(0f, 0f, a.Angle + a.Spin * elapsed);
+
+                var fadeT = Mathf.InverseLerp(Mathf.Clamp01(a.Hold), 1f, t);
+                var fade = 1f - fadeT * fadeT;
+                var c = Color.Lerp(a.StartColour, Color.white, a.Heat * (1f - t));
+                c.a = a.StartColour.a * fade;
+                a.Image.color = c;
+
+                _live[i] = a;
+            }
+        }
+
+        // ---------------------------------------------------------------- pool
+
+        private Image Take(Sprite sprite, float size, bool glow = false)
+        {
+            Image img = null;
+            foreach (var candidate in _pool)
+            {
+                if (candidate.gameObject.activeSelf) continue;
+                img = candidate;
+                break;
+            }
+
+            if (img == null)
+            {
+                var go = new GameObject("Vfx", typeof(RectTransform));
+                var rt = (RectTransform)go.transform;
+                rt.SetParent(_root, false);
+                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+
+                img = go.AddComponent<Image>();
+                img.raycastTarget = false;
+                _pool.Add(img);
+            }
+
+            img.gameObject.SetActive(true);
+            img.sprite = sprite;
+            img.type = Image.Type.Simple;
+            img.material = glow && _glow != null ? _glow : null;
+            img.preserveAspect = true;
+            img.transform.localScale = Vector3.one;
+            img.transform.localRotation = Quaternion.identity;
+
+            if (size > 0f) ((RectTransform)img.transform).sizeDelta = new Vector2(size, size);
+            return img;
+        }
+
+        private void Release(Image img)
+        {
+            if (img == null) return;
+            img.gameObject.SetActive(false);
+        }
+
+        private void RetireCore(BloodStream line, float duration)
+        {
+            RetireImage(line.Core, duration);
+            RetireImage(line.Halo, duration);
+            line.Core = null;
+            line.Halo = null;
+        }
+
+        private void RetireImage(Image img, float duration)
+        {
+            if (img == null) return;
+            var rt = (RectTransform)img.transform;
+            _live.Add(new Active
+            {
+                Image = img,
+                Rect = rt,
+                From = rt.anchoredPosition,
+                To = rt.anchoredPosition,
+                Start = Time.unscaledTime,
+                Duration = duration,
+                StartScale = 1f,
+                EndScale = 1f,
+                StartColour = img.color,
+                Angle = rt.localEulerAngles.z
+            });
+        }
+
+        private void TickBlood(float now)
+        {
+            if (_blood == null) return;
+            var line = _blood;
+            if (line.FadeAt >= 0f && now >= line.FadeAt)
+            {
+                EndBloodLine(line.HitOnFade);
+                return;
+            }
+
+            var dir = line.To - line.From;
+            var len = dir.magnitude;
+            if (len < 1f) return;
+
+            var normal = new Vector2(-dir.y, dir.x) / len;
+            var turns = HelixTurns(len);
+            var pairs = Mathf.Max(1, line.Segments.Count / 2);
+            var points = new Vector2[pairs * 2];
+            var depth = new float[pairs * 2];
+
+            for (var i = 0; i < pairs * 2; i++)
+            {
+                var strand = i % 2;
+                var t = (i / 2 + 0.5f) / pairs;
+                var phase = t * turns * Mathf.PI * 2f + now * 2.4f + strand * Mathf.PI;
+                depth[i] = Mathf.Cos(phase);
+                points[i] = HelixPoint(line.From, line.To, dir, normal, len, t, phase);
+            }
+
+            for (var pass = 0; pass < 2; pass++)
+            {
+                var back = pass == 0;
+                for (var k = 1; k < pairs; k++)
+                for (var strand = 0; strand < 2; strand++)
+                {
+                    var a = (k - 1) * 2 + strand;
+                    var b = k * 2 + strand;
+                    if ((depth[a] + depth[b]) * 0.5f < 0f != back) continue;
+                    var slot = (k - 1) * 2 + strand;
+                    if (slot >= line.Ribbons.Count || line.Ribbons[slot] == null) continue;
+                    var front = ((depth[a] + depth[b]) * 0.5f + 1f) * 0.5f;
+                    PlaceBar(line.Ribbons[slot], points[a], points[b], 8f,
+                        Color.Lerp(new Color(0.42f, 0.02f, 0.05f, 0.9f), new Color(0.9f, 0.08f, 0.1f, 1f), front));
+                }
+
+                for (var i = 0; i < pairs * 2; i++)
+                {
+                    if (depth[i] < 0f != back) continue;
+                    if (i >= line.Segments.Count || line.Segments[i] == null) continue;
+                    PlaceHelixDrop(line.Segments[i], points[i], depth[i], i < line.Twist.Count ? line.Twist[i] : 0f);
+                }
+
+                if (back)
+                {
+                    for (var k = 0; k < pairs && k < line.Rungs.Count; k++)
+                    {
+                        if (line.Rungs[k] == null) continue;
+                        var dist = Vector2.Distance(points[k * 2], points[k * 2 + 1]);
+                        var open = Mathf.Clamp01((dist - 12f) / (HelixRadius * 0.7f));
+                        var colour = new Color(0.62f, 0.03f, 0.06f, 0.85f * open);
+                        PlaceBar(line.Rungs[k], points[k * 2], points[k * 2 + 1], 5f, colour);
+                    }
+
+                    if (line.Core != null) line.Core.transform.SetAsLastSibling();
+                }
+            }
+        }
+
+        /// <summary>One triangle on a double helix. The far strand sits behind the line and draws smaller.</summary>
+        private static void PlaceHelixDrop(Image img, Vector2 at, float depth, float spin)
+        {
+            var front = (depth + 1f) * 0.5f;
+            var rt = (RectTransform)img.transform;
+            rt.anchoredPosition = at;
+            rt.localEulerAngles = new Vector3(0f, 0f, spin);
+            rt.localScale = Vector3.one * Mathf.Lerp(0.72f, 1.2f, front);
+            img.color = Color.Lerp(new Color(0.5f, 0.02f, 0.05f, 1f), new Color(0.96f, 0.1f, 0.1f, 1f), front);
+            img.transform.SetAsLastSibling();
+        }
+
+        private static Vector2 HelixPoint(Vector2 from, Vector2 to, Vector2 dir, Vector2 normal, float len, float t, float phase)
+        {
+            var along = dir / len;
+            return Vector2.Lerp(from, to, t)
+                   + normal * Mathf.Sin(phase) * HelixRadius
+                   + along * Mathf.Cos(phase) * (HelixRadius * 0.22f);
+        }
+
+        private static void PlaceBar(Image img, Vector2 a, Vector2 b, float thickness, Color colour)
+        {
+            var delta = b - a;
+            var dist = delta.magnitude;
+            var rt = (RectTransform)img.transform;
+            rt.sizeDelta = new Vector2(Mathf.Max(dist, 1f), thickness);
+            rt.anchoredPosition = (a + b) * 0.5f;
+            rt.localEulerAngles = new Vector3(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+            rt.localScale = Vector3.one;
+            img.color = colour;
+            img.enabled = dist > 4f && colour.a > 0.04f;
+            img.transform.SetAsLastSibling();
+        }
+
+        private void RetireLinks(BloodStream line, float duration)
+        {
+            foreach (var img in line.Rungs) RetireImage(img, duration);
+            foreach (var img in line.Ribbons) RetireImage(img, duration);
+            line.Rungs.Clear();
+            line.Ribbons.Clear();
+        }
+
+        private static float HelixTurns(float len) => Mathf.Clamp(len / 95f, 3.5f, 8f);
+
+        private const float HelixRadius = 58f;
+
+        /// <summary>Hard-edged spray. No glow, so each drop keeps its outline.</summary>
+        private void BloodSplash(Vector2 at, int drops, float power)
+        {
+            EnsureBloodArt();
+            for (var i = 0; i < drops; i++)
+            {
+                var img = Take(RandomTriangle(), Random.Range(12f, 20f));
+                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, Random.Range(0f, 360f));
+                var angle = Random.Range(0f, Mathf.PI * 2f);
+                var tint = Color.Lerp(new Color(0.55f, 0.01f, 0.04f, 1f), new Color(0.9f, 0.06f, 0.08f, 1f), Random.value);
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = at,
+                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * power * Random.Range(0.35f, 1f),
+                    Gravity = -1600f,
+                    Start = Time.unscaledTime,
+                    Duration = Random.Range(0.42f, 0.7f),
+                    StartScale = 1f,
+                    EndScale = 0.7f,
+                    StartColour = tint,
+                    Ballistic = true,
+                    Angle = img.rectTransform.localEulerAngles.z,
+                    Spin = Random.Range(-40f, 40f),
+                    Hold = 0.4f
+                });
+            }
+
+            var spatters = Mathf.Clamp(drops / 3, 3, 6);
+            for (var i = 0; i < spatters; i++)
+            {
+                var img = Take(RandomTriangle(), Random.Range(8f, 14f));
+                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, Random.Range(0f, 360f));
+                var angle = Random.Range(0f, Mathf.PI * 2f);
+                _live.Add(new Active
+                {
+                    Image = img,
+                    Rect = (RectTransform)img.transform,
+                    From = at,
+                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * power * Random.Range(0.15f, 0.45f),
+                    Gravity = -900f,
+                    Start = Time.unscaledTime,
+                    Duration = Random.Range(0.35f, 0.55f),
+                    StartScale = 1f,
+                    EndScale = 0.75f,
+                    StartColour = new Color(0.62f, 0.02f, 0.05f, 1f),
+                    Ballistic = true,
+                    Angle = img.rectTransform.localEulerAngles.z,
+                    Hold = 0.5f
+                });
+            }
+        }
+
+        private Image Bar()
+        {
+            var img = Take(_bar, 0f);
+            img.type = Image.Type.Sliced;
+            img.preserveAspect = false;
+            return img;
+        }
+
+        private Image Vein(float length, float thickness, float angle, Vector2 at, Color colour)
+        {
+            var img = Take(_vein, 0f);
+            img.type = Image.Type.Sliced;
+            img.color = colour;
+            img.preserveAspect = false;
+            var rt = (RectTransform)img.transform;
+            rt.sizeDelta = new Vector2(length, thickness);
+            rt.anchoredPosition = at;
+            rt.localEulerAngles = new Vector3(0f, 0f, angle);
+            img.transform.SetAsLastSibling();
+            return img;
+        }
+
+        private void EnsureBloodArt()
+        {
+            if (_triangles == null || _triangles.Length == 0) BuildTriangles();
+            if (_vein == null) _vein = HardVein(out _veinTex);
+            if (_bar == null) _bar = SoftBar(out _barTex);
+        }
+
+        private Sprite RandomTriangle()
+        {
+            EnsureBloodArt();
+            return _triangles[Random.Range(0, _triangles.Length)];
+        }
+
+        private void BuildTriangles()
+        {
+            var shapes = new[]
+            {
+                new[] { new Vector2(0.50f, 0.08f), new Vector2(0.12f, 0.92f), new Vector2(0.88f, 0.78f) },
+                new[] { new Vector2(0.18f, 0.12f), new Vector2(0.92f, 0.28f), new Vector2(0.42f, 0.94f) },
+                new[] { new Vector2(0.08f, 0.20f), new Vector2(0.90f, 0.08f), new Vector2(0.55f, 0.96f) },
+                new[] { new Vector2(0.30f, 0.06f), new Vector2(0.06f, 0.84f), new Vector2(0.94f, 0.62f) },
+                new[] { new Vector2(0.62f, 0.04f), new Vector2(0.10f, 0.48f), new Vector2(0.86f, 0.94f) }
+            };
+
+            _triangles = new Sprite[shapes.Length];
+            _triangleTex = new Texture2D[shapes.Length];
+            for (var i = 0; i < shapes.Length; i++)
+                _triangles[i] = HardTriangle(shapes[i][0], shapes[i][1], shapes[i][2], out _triangleTex[i]);
+        }
+
+        /// <summary>A hard-edged triangle. Coordinates are 0–1 inside the texture.</summary>
+        private static Sprite HardTriangle(Vector2 a, Vector2 b, Vector2 c, out Texture2D tex)
+        {
+            const int size = 64;
+            tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+                name = "BloodTriangle"
+            };
+
+            var pa = a * (size - 1);
+            var pb = b * (size - 1);
+            var pc = c * (size - 1);
+            var px = new Color32[size * size];
+            for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var p = new Vector2(x, y);
+                var area = Edge(pb, pc, pa);
+                var w0 = Edge(pb, pc, p) / area;
+                var w1 = Edge(pc, pa, p) / area;
+                var w2 = Edge(pa, pb, p) / area;
+                var inside = w0 >= 0f && w1 >= 0f && w2 >= 0f;
+                if (area < 0f) inside = w0 <= 0f && w1 <= 0f && w2 <= 0f;
+                var dist = inside ? Mathf.Min(Mathf.Abs(w0), Mathf.Min(Mathf.Abs(w1), Mathf.Abs(w2))) * Mathf.Abs(area) : -1f;
+                var alpha = inside ? Mathf.Clamp01(dist) : 0f;
+                var v = (byte)(inside ? 255 : 0);
+                px[y * size + x] = new Color32(v, v, v, (byte)Mathf.RoundToInt(alpha * 255f));
+            }
+
+            tex.SetPixels32(px);
+            tex.Apply(false, false);
+            var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, Vector4.zero);
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            return sprite;
+        }
+
+        private static float Edge(Vector2 a, Vector2 b, Vector2 p) =>
+            (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
+
+        /// <summary>A soft stroke that pinches to a point at each end. The caps stay fixed while the middle stretches.</summary>
+        private static Sprite HardVein(out Texture2D tex)
+        {
+            const int w = 96;
+            const int h = 64;
+            const float cap = 40f;
+            tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+                name = "BloodVein"
+            };
+
+            var px = new Color32[w * h];
+            for (var y = 0; y < h; y++)
+            for (var x = 0; x < w; x++)
+            {
+                var taper = 1f;
+                if (x < cap) taper = x / cap;
+                else if (x > w - 1 - cap) taper = (w - 1 - x) / cap;
+
+                var a = 0f;
+                if (taper > 0.001f)
+                {
+                    var ny = (y - (h - 1) * 0.5f) / ((h - 1) * 0.5f);
+                    var local = ny / taper;
+                    if (local * local <= 1f)
+                        a = Mathf.Exp(-local * local * 2.2f) * Mathf.Clamp01(1.2f - local * local);
+                }
+
+                px[y * w + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+            }
+
+            tex.SetPixels32(px);
+            tex.Apply(false, false);
+            var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, new Vector4(cap, 0f, cap, 0f));
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            return sprite;
+        }
+
+        /// <summary>A short soft stroke used for the DNA strands and the rungs between them.</summary>
+        private static Sprite SoftBar(out Texture2D tex)
+        {
+            const int w = 48;
+            const int h = 16;
+            const float cap = 8f;
+            tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+                name = "BloodBar"
+            };
+
+            var px = new Color32[w * h];
+            for (var y = 0; y < h; y++)
+            for (var x = 0; x < w; x++)
+            {
+                var ny = (y - (h - 1) * 0.5f) / ((h - 1) * 0.5f);
+                var body = Mathf.Exp(-ny * ny * 2.4f) * Mathf.Clamp01(1.15f - ny * ny);
+                var end = 1f;
+                if (x < cap) end = Mathf.SmoothStep(0f, 1f, x / cap);
+                else if (x > w - 1 - cap) end = Mathf.SmoothStep(0f, 1f, (w - 1 - x) / cap);
+                px[y * w + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(body * end) * 255f));
+            }
+
+            tex.SetPixels32(px);
+            tex.Apply(false, false);
+            var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, new Vector4(cap, 0f, cap, 0f));
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            return sprite;
+        }
+
+        /// <summary>Converts a UI element's position into the effects layer's space.</summary>
+        public Vector2 PositionOf(RectTransform target)
+        {
+            if (target == null || _root == null) return Vector2.zero;
+            var world = target.TransformPoint(Vector3.zero);
+            return _root.InverseTransformPoint(world);
+        }
+    }
+}

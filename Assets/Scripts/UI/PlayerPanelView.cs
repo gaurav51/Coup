@@ -58,7 +58,18 @@ namespace Coup.Game.UI
             Seat = seat;
             _art = art;
             _cardPrefab = cardPrefab;
-            if (coinIcon != null && art != null) coinIcon.sprite = art.coin;
+            if (coinIcon != null) coinIcon.enabled = false;
+            if (coinText != null)
+            {
+                var coins = coinText.rectTransform;
+                coins.anchorMin = coins.anchorMax = coins.pivot = new Vector2(0.5f, 1f);
+                coins.anchoredPosition = new Vector2(0f, -168f);
+                coins.sizeDelta = new Vector2(160f, 40f);
+                coinText.alignment = TextAlignmentOptions.Center;
+                coinText.richText = true;
+                if (coinText.spriteAsset == null)
+                    coinText.spriteAsset = TMP_Settings.defaultSpriteAsset;
+            }
             if (claimText != null)
             {
                 claimText.enableAutoSizing = true;
@@ -118,7 +129,7 @@ namespace Coup.Game.UI
         private void RefreshCoins(int coins)
         {
             if (coinText == null) return;
-            coinText.text = coins.ToString();
+            coinText.text = $"<sprite name=\"coin\" tint=0> {coins}";
 
             // Pop the counter only when it actually moves, so the eye follows the money.
             if (_lastCoins >= 0 && coins != _lastCoins)

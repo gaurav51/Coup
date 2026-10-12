@@ -12,6 +12,47 @@ namespace Coup.Game.UI
         public static readonly Color Navy = new Color(0.07f, 0.11f, 0.20f);
         public static readonly Color Dim = new Color(1f, 1f, 1f, 0.35f);
 
+        public static TMP_FontAsset DisplayFont { get; private set; }
+        public static TMP_FontAsset BodyFont { get; private set; }
+
+        /// <summary>Cinzel for names and labels, Cormorant Garamond for sentences.</summary>
+        public static void UseFonts(TMP_FontAsset display, TMP_FontAsset body)
+        {
+            DisplayFont = display;
+            BodyFont = body;
+        }
+
+        public static void SetFont(TextMeshProUGUI text, bool prose)
+        {
+            if (text == null) return;
+            var font = prose ? BodyFont : DisplayFont;
+            if (font != null) text.font = font;
+        }
+
+        public static void ApplyFonts(Transform root)
+        {
+            if (root == null) return;
+            foreach (var text in root.GetComponentsInChildren<TextMeshProUGUI>(true))
+                SetFont(text, IsProse(text.gameObject.name));
+        }
+
+        private static bool IsProse(string name)
+        {
+            switch (name)
+            {
+                case "Log":
+                case "Status":
+                case "Cost":
+                case "Ability":
+                case "Caption":
+                case "Body":
+                case "Message":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         public static RectTransform Rect(string name, Transform parent, Vector2 size, Vector2 pos)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -55,7 +96,8 @@ namespace Coup.Game.UI
 
         public static TextMeshProUGUI Text(string name, Transform parent, string content,
                                            float fontSize, Vector2 size, Vector2 pos,
-                                           TextAlignmentOptions align = TextAlignmentOptions.Center)
+                                           TextAlignmentOptions align = TextAlignmentOptions.Center,
+                                           bool prose = false)
         {
             var rt = Rect(name, parent, size, pos);
             var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
@@ -66,6 +108,7 @@ namespace Coup.Game.UI
             t.raycastTarget = false;
             t.textWrappingMode = TextWrappingModes.Normal;
             t.overflowMode = TextOverflowModes.Ellipsis;
+            SetFont(t, prose || IsProse(name));
             return t;
         }
 

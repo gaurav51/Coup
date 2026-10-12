@@ -79,6 +79,11 @@ namespace Coup.Game.UI
         {
             _root = (RectTransform)transform;
             if (match == null) match = FindAnyObjectByType<MatchController>();
+            UIFactory.UseFonts(art != null ? art.displayFont : null, art != null ? art.bodyFont : null);
+            // A reimported sprite asset keeps a stale name lookup, and the coin
+            // tag then renders against a character with no asset.
+            if (TMP_Settings.defaultSpriteAsset != null)
+                TMP_Settings.defaultSpriteAsset.UpdateLookupTables();
 
             // The table lives in the scene. Build() only runs if that hierarchy
             // has not been authored yet.
@@ -86,6 +91,8 @@ namespace Coup.Game.UI
                 Build();
             else
                 BindScene();
+
+            UIFactory.ApplyFonts(transform);
 
             if (match != null)
             {
@@ -129,6 +136,7 @@ namespace Coup.Game.UI
             _hudName = FindText("Stage/Hud/Name");
             _hudCoinIcon = FindRect("Stage/Hud/CoinIcon");
             _hudCoins = FindText("Stage/Hud/Coins");
+            DressHudCoins();
             _actionBar = FindRect("Stage/ActionBar");
             _responseBar = FindRect("Stage/ResponseBar");
 
@@ -410,10 +418,27 @@ namespace Coup.Game.UI
 
             var coinIcon = UIFactory.Image("CoinIcon", plate, art?.coin, new Vector2(54, 54), new Vector2(250, 0));
             _hudCoinIcon = coinIcon.rectTransform;
-            _hudCoins = UIFactory.Text("Coins", plate, "0", 40, new Vector2(150, 56), new Vector2(368, 0));
+            _hudCoins = UIFactory.Text("Coins", plate, "0", 40, new Vector2(180, 56), new Vector2(340, 0));
             _hudCoins.alignment = TextAlignmentOptions.Left;
             _hudCoins.color = UIFactory.Gold;
             _hudCoins.fontStyle = FontStyles.Bold;
+            DressHudCoins();
+        }
+
+        /// <summary>The count on the You bar carries the gold coin inside the text.</summary>
+        private void DressHudCoins()
+        {
+            if (_hudCoinIcon != null)
+            {
+                var image = _hudCoinIcon.GetComponent<Image>();
+                if (image != null) image.enabled = false;
+            }
+
+            if (_hudCoins == null) return;
+            _hudCoins.richText = true;
+            _hudCoins.alignment = TextAlignmentOptions.Left;
+            if (_hudCoins.spriteAsset == null)
+                _hudCoins.spriteAsset = TMP_Settings.defaultSpriteAsset;
         }
 
         private void BuildActionBar()
@@ -570,9 +595,10 @@ namespace Coup.Game.UI
             var me = game.Players[match.humanSeat];
             _hudName.text = me.Name;
 
-            if (_hudCoins.text != me.Coins.ToString())
+            var coins = $"<sprite name=\"coin\" tint=0> {me.Coins}";
+            if (_hudCoins.text != coins)
             {
-                _hudCoins.text = me.Coins.ToString();
+                _hudCoins.text = coins;
                 CoupTween.Punch(_hudCoins.transform, 0.28f, CoupTween.Quick);
             }
         }
@@ -814,13 +840,13 @@ namespace Coup.Game.UI
 
         private static string Effect(ActionKind kind) => kind switch
         {
-            ActionKind.Income => "Get 1 coin",
-            ActionKind.ForeignAid => "Get 2 coins",
-            ActionKind.Tax => "Get 3 coins",
-            ActionKind.Steal => "Take 2 coins",
-            ActionKind.Assassinate => "Pay 3, lose card",
+            ActionKind.Income => "Get 1 <sprite name=\"coin\" tint=0>",
+            ActionKind.ForeignAid => "Get 2 <sprite name=\"coin\" tint=0>",
+            ActionKind.Tax => "Get 3 <sprite name=\"coin\" tint=0>",
+            ActionKind.Steal => "Take 2 <sprite name=\"coin\" tint=0>",
+            ActionKind.Assassinate => "Pay 3 <sprite name=\"coin\" tint=0>",
             ActionKind.Exchange => "Draw new cards",
-            ActionKind.Coup => "Pay 7, lose card",
+            ActionKind.Coup => "Pay 7 <sprite name=\"coin\" tint=0>",
             _ => ""
         };
 

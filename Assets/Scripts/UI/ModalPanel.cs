@@ -249,6 +249,7 @@ namespace Coup.Game.UI
                     _art != null ? _art.Ability(role) : "",
                     17, new Vector2(slot - 10, 70), new Vector2(x, captionY - 44));
                 ability.color = new Color(0.80f, 0.78f, 0.72f);
+                UIFactory.SetFont(ability, true);
                 ability.enableAutoSizing = true;
                 ability.fontSizeMin = 10;
                 ability.fontSizeMax = 17;

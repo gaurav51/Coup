@@ -144,8 +144,16 @@ namespace Coup.Game.UI
             }
 
             // Captions and the frame are shown or hidden in the prefab, not here.
-            if (nameText != null) nameText.text = entry?.displayName ?? role.ToString().ToUpperInvariant();
-            if (abilityText != null) abilityText.text = entry?.ability ?? "";
+            if (nameText != null)
+            {
+                nameText.text = entry?.displayName ?? role.ToString().ToUpperInvariant();
+                UIFactory.SetFont(nameText, false);
+            }
+            if (abilityText != null)
+            {
+                abilityText.text = entry?.ability ?? "";
+                UIFactory.SetFont(abilityText, true);
+            }
 
             if (back != null) back.SetActive(false);
 

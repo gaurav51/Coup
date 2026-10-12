@@ -57,23 +57,23 @@ MonoBehaviour:
   actions:
   - action: 0
     label: Income
-    subtitle: +1 Coin
+    subtitle: '+1 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: b7cb1223b7aef47e1a0a12d4184dcae5, type: 3}
   - action: 1
     label: Foreign Aid
-    subtitle: +2 Coins
+    subtitle: '+2 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: 97c7042bf25154cc1bf54c60406f4621, type: 3}
   - action: 3
     label: Tax
-    subtitle: Take 3 Coins
+    subtitle: 'Take 3 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: 51d0eb72fe4264f49b844a41e615db68, type: 3}
   - action: 4
     label: Steal
-    subtitle: Take 2 Coins
+    subtitle: 'Take 2 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: d93cb680bc8ac416b9b5d5ca7503c363, type: 3}
   - action: 5
     label: Assassinate
-    subtitle: Pay 3 Coins
+    subtitle: 'Pay 3 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: 8d52fdb05b00c40988f07785867c7beb, type: 3}
   - action: 6
     label: Exchange
@@ -81,7 +81,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 2f26d37e424be41d3860b948ffe9e619, type: 3}
   - action: 2
     label: Coup
-    subtitle: Pay 7 Coins
+    subtitle: 'Pay 7 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: bcde6719aaa904fa0b269258cb2b5d95, type: 3}
   cardBack: {fileID: 21300000, guid: c6eb9b9cb897c4184b7b481f6ec46a9c, type: 3}
   opponentCardBack: {fileID: 21300000, guid: e5b5a5e29c84041e8b5d2878fb9b427f, type: 3}
@@ -103,3 +103,5 @@ MonoBehaviour:
   challengeButton: {fileID: 21300000, guid: 777ed323ee32346569fa3f87e8beecc8, type: 3}
   menuButton: {fileID: 21300000, guid: 1b9573bd9d5ef4e12bfa8117f8597ba0, type: 3}
   settingsButton: {fileID: 21300000, guid: b14b5edd1a95443958f137a025c7fce2, type: 3}
+  displayFont: {fileID: 11400000, guid: a23e911ce682141438390e18d8a3e072, type: 2}
+  bodyFont: {fileID: 11400000, guid: d2f7565eb64ef48f7a2c22fa12ba43c5, type: 2}

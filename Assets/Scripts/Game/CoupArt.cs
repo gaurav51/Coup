@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 using Coup.Core;
 
@@ -68,6 +69,10 @@ namespace Coup.Game
         public Sprite challengeButton;
         public Sprite menuButton;
         public Sprite settingsButton;
+
+        [Header("Type")]
+        public TMP_FontAsset displayFont;
+        public TMP_FontAsset bodyFont;
 
         public RoleArt For(Role role) => roles.FirstOrDefault(r => r.role == role);
 

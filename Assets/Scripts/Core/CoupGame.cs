@@ -40,6 +40,7 @@ namespace Coup.Core
         private readonly HashSet<int> _responders = new();
         private readonly Queue<(int player, LossReason reason)> _pendingLosses = new();
         private readonly List<Role> _exchangeDrawn = new();
+        private readonly List<Role> _presentedPool = new();
 
         private PendingAction _pending;
         private PostLoss _postLoss = PostLoss.None;
@@ -529,6 +530,7 @@ namespace Coup.Core
         private void BeginExchange(PlayerState actor)
         {
             _exchangeDrawn.Clear();
+            _presentedPool.Clear();
             for (var i = 0; i < Rules.ExchangeDrawCount; i++)
                 _exchangeDrawn.Add(_deck.Draw());
 
@@ -548,6 +550,11 @@ namespace Coup.Core
         {
             if (Phase != GamePhase.AwaitingExchangeSelection)
                 return Array.Empty<Role>();
+            // A server snapshot names the exact cards. Rebuilding the pool from the
+            // visible hand can invent a copy the table does not have.
+            if (_presentedPool.Count > 0)
+                return _presentedPool;
+            if (_pending == null) return Array.Empty<Role>();
             var pool = new List<Role>(_players[_pending.ActorIndex].Influence);
             pool.AddRange(_exchangeDrawn);
             return pool;
@@ -772,9 +779,11 @@ namespace Coup.Core
                 _pendingLosses.Enqueue((view.Loser, view.LossReason ?? LossReason.Couped));
 
             _exchangeDrawn.Clear();
+            _presentedPool.Clear();
             _exchangeKeepCount = 0;
             if (Phase == GamePhase.AwaitingExchangeSelection && view.ExchangePool != null && _pending != null)
             {
+                _presentedPool.AddRange(view.ExchangePool);
                 var pool = new List<Role>(view.ExchangePool);
                 var hand = _players[_pending.ActorIndex].Influence;
                 for (var i = 0; i < hand.Count; i++) pool.Remove(hand[i]);

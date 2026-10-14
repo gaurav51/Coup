@@ -74,7 +74,8 @@ namespace Coup.Net
                 Action = ParseAction(payload.Str("action")),
                 Role = ParseRole(payload.Str("role")),
                 Amount = payload.Int("amount", 0),
-                Reason = ParseLoss(payload.Str("reason"))
+                Reason = ParseLoss(payload.Str("reason")),
+                HoldMs = Math.Max(0, payload.Int("hold", 0))
             };
         }
 

@@ -34,6 +34,9 @@ namespace Coup.Core
         public int Amount { get; set; }
         public LossReason? Reason { get; set; }
 
+        /// <summary>Milliseconds to wait after this event before the next one is shown. Zero means use the local table.</summary>
+        public int HoldMs { get; set; }
+
         public override string ToString()
         {
             var s = Kind.ToString();

@@ -22,6 +22,7 @@ MonoBehaviour:
     cardFace: {fileID: 21300000, guid: 3ccf6b3d8edb74684bdef5c6ec9a3889, type: 3}
     portrait: {fileID: 21300000, guid: 3ccf6b3d8edb74684bdef5c6ec9a3889, type: 3}
     backdrop: {fileID: 21300000, guid: b87ce4abb608c409faddd8010aa9fb2f, type: 3}
+    callout: {fileID: 21300000, guid: af068bdaf0a0b4773972824ca166a574, type: 3}
   - role: 1
     displayName: CAPTAIN
     ability: 'Steal 2 coins.
@@ -31,6 +32,7 @@ MonoBehaviour:
     cardFace: {fileID: 21300000, guid: 2952ab2d5d20946f7bde17864d605b93, type: 3}
     portrait: {fileID: 21300000, guid: 2952ab2d5d20946f7bde17864d605b93, type: 3}
     backdrop: {fileID: 21300000, guid: 75724effef5ba4f428d6edaaf04efc8d, type: 3}
+    callout: {fileID: 21300000, guid: 4628e0d9842c14c7eb9676abc4f9617e, type: 3}
   - role: 2
     displayName: ASSASSIN
     ability: Pay 3 coins to assassinate.
@@ -38,6 +40,7 @@ MonoBehaviour:
     cardFace: {fileID: 21300000, guid: 73aec43b433994a3286a6b5396a2c3b0, type: 3}
     portrait: {fileID: 21300000, guid: 73aec43b433994a3286a6b5396a2c3b0, type: 3}
     backdrop: {fileID: 21300000, guid: cb9aea5d51e0a4b2f8b8b6cc9a4cf289, type: 3}
+    callout: {fileID: 21300000, guid: e58c2191670f14597bb0ec7a9f233471, type: 3}
   - role: 3
     displayName: CONTESSA
     ability: Blocks assassination.
@@ -45,6 +48,7 @@ MonoBehaviour:
     cardFace: {fileID: 21300000, guid: e941dd5295e504e319af7045129e036f, type: 3}
     portrait: {fileID: 21300000, guid: e941dd5295e504e319af7045129e036f, type: 3}
     backdrop: {fileID: 21300000, guid: b57829f874f9341f58c6560f4c7c5f27, type: 3}
+    callout: {fileID: 21300000, guid: 6242659e333f2498a8599284fc561fdf, type: 3}
   - role: 4
     displayName: AMBASSADOR
     ability: 'Exchange cards.
@@ -54,35 +58,43 @@ MonoBehaviour:
     cardFace: {fileID: 21300000, guid: 30ad8003d6af34f05aa00e6485245fd1, type: 3}
     portrait: {fileID: 21300000, guid: 30ad8003d6af34f05aa00e6485245fd1, type: 3}
     backdrop: {fileID: 21300000, guid: 3f44781cc3af645caaa4455ed8da69e7, type: 3}
+    callout: {fileID: 21300000, guid: 8ba4b3fc0dd294f4e85eef14ce8ef6b2, type: 3}
   actions:
   - action: 0
     label: Income
     subtitle: '+1 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: b7cb1223b7aef47e1a0a12d4184dcae5, type: 3}
+    callout: {fileID: 0}
   - action: 1
     label: Foreign Aid
     subtitle: '+2 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: 97c7042bf25154cc1bf54c60406f4621, type: 3}
+    callout: {fileID: 0}
   - action: 3
     label: Tax
     subtitle: 'Take 3 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: 51d0eb72fe4264f49b844a41e615db68, type: 3}
+    callout: {fileID: 21300000, guid: 0946b5fccb89741b4b6e4f8810ffdc92, type: 3}
   - action: 4
     label: Steal
     subtitle: 'Take 2 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: d93cb680bc8ac416b9b5d5ca7503c363, type: 3}
+    callout: {fileID: 21300000, guid: 449272b4d4a544ecea8f39cbecd242ac, type: 3}
   - action: 5
     label: Assassinate
     subtitle: 'Pay 3 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: 8d52fdb05b00c40988f07785867c7beb, type: 3}
+    callout: {fileID: 21300000, guid: 9a4ff46175b99460faf6bcbf9706ec51, type: 3}
   - action: 6
     label: Exchange
     subtitle: Swap Cards
     icon: {fileID: 21300000, guid: 2f26d37e424be41d3860b948ffe9e619, type: 3}
+    callout: {fileID: 21300000, guid: ed0e1781ee1914b1dbf2adba3dbf6718, type: 3}
   - action: 2
     label: Coup
     subtitle: 'Pay 7 <sprite name="coin" tint=0>'
     icon: {fileID: 21300000, guid: bcde6719aaa904fa0b269258cb2b5d95, type: 3}
+    callout: {fileID: 21300000, guid: 2753e05c301d441c5acc88cb470ffb44, type: 3}
   cardBack: {fileID: 21300000, guid: c6eb9b9cb897c4184b7b481f6ec46a9c, type: 3}
   opponentCardBack: {fileID: 21300000, guid: e5b5a5e29c84041e8b5d2878fb9b427f, type: 3}
   drawDeck: {fileID: 21300000, guid: 4cdd1437d78a4485b8dab25e9002fb98, type: 3}
@@ -101,6 +113,8 @@ MonoBehaviour:
   blankButton: {fileID: 21300000, guid: bc93bdb6bbbfb4b05973208cb4cdccd4, type: 3}
   blockButton: {fileID: 21300000, guid: aba0955c147ea46b1a3478955ff5b703, type: 3}
   challengeButton: {fileID: 21300000, guid: 777ed323ee32346569fa3f87e8beecc8, type: 3}
+  challengeCallout: {fileID: 21300000, guid: 830c3451be86947d589666478bf16c02, type: 3}
+  influenceLostCallout: {fileID: 21300000, guid: 9eba17ca006024ffd88df4286d009746, type: 3}
   menuButton: {fileID: 21300000, guid: 1b9573bd9d5ef4e12bfa8117f8597ba0, type: 3}
   settingsButton: {fileID: 21300000, guid: b14b5edd1a95443958f137a025c7fce2, type: 3}
   displayFont: {fileID: 11400000, guid: a23e911ce682141438390e18d8a3e072, type: 2}

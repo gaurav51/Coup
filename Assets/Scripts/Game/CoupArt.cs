@@ -23,6 +23,7 @@ namespace Coup.Game
             public Sprite cardFace;   // original art, captions baked in
             public Sprite portrait;   // generated cut-out used on the card prefab
             public Sprite backdrop;   // faction environment used as the card's background
+            public Sprite callout;    // title shown when this character blocks
         }
 
         [Serializable]
@@ -32,6 +33,7 @@ namespace Coup.Game
             public string label;
             public string subtitle;
             public Sprite icon;
+            public Sprite callout;    // the one title shown when this action is played
         }
 
         [Header("Roles")]
@@ -67,6 +69,8 @@ namespace Coup.Game
         [Header("Buttons")]
         public Sprite blockButton;
         public Sprite challengeButton;
+        public Sprite challengeCallout; // flies from the challenger onto the player they call
+        public Sprite influenceLostCallout;
         public Sprite menuButton;
         public Sprite settingsButton;
 
@@ -94,5 +98,9 @@ namespace Coup.Game
         public Color Accent(Role role) => For(role)?.accent ?? Color.white;
 
         public string DisplayName(Role role) => For(role)?.displayName ?? role.ToString();
+
+        public Sprite Callout(ActionKind action) => For(action)?.callout;
+
+        public Sprite Callout(Role role) => For(role)?.callout;
     }
 }

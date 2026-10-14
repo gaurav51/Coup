@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -34,13 +33,15 @@ namespace Coup.Game.UI
         private readonly List<CardView> _cards = new();
         private readonly List<GameObject> _buttons = new();
         private readonly List<GameObject> _captions = new();
-        private readonly List<Role> _picked = new();
+        private readonly HashSet<int> _picked = new();
+        private int _epoch;
+        private bool _open;
 
         private int _pickCount;
         private Action<IReadOnlyList<Role>> _onConfirm;
         private IReadOnlyList<Role> _pool;
 
-        public bool IsOpen => _root != null && _root.gameObject.activeSelf;
+        public bool IsOpen => _open;
 
         /// <summary>Reconnects a modal that was saved in the scene.</summary>
         public bool TryBind(CoupArt art, CardView cardPrefab)
@@ -259,25 +260,23 @@ namespace Coup.Game.UI
 
         private void TogglePick(int index)
         {
-            // Track by index: a pool can hold two copies of the same role.
-            var role = _pool[index];
+            // A pool can hold two copies of one character, so the choice is the
+            // card itself. Reading the scale would count a second tap as another copy.
             var card = _cards[index];
-
             var resting = card.RestingScale;
-            var selected = card.transform.localScale.y > resting.y * 1.01f;
 
-            if (selected)
+            if (_picked.Contains(index))
             {
-                _picked.Remove(role);
-                CoupTween.ScaleTo((RectTransform)card.transform, resting, CoupTween.Quick);
+                _picked.Remove(index);
                 card.SetHighlight(false);
+                CoupTween.ScaleTo(card.root, resting, CoupTween.Quick);
             }
             else
             {
                 if (_picked.Count >= _pickCount) return;
-                _picked.Add(role);
-                CoupTween.ScaleTo((RectTransform)card.transform, resting * 1.06f, CoupTween.Quick);
+                _picked.Add(index);
                 card.SetHighlight(true);
+                CoupTween.ScaleTo(card.root, resting * 1.06f, CoupTween.Quick);
             }
 
             RefreshConfirm();
@@ -294,7 +293,9 @@ namespace Coup.Game.UI
         private void OnConfirm()
         {
             if (_picked.Count != _pickCount) return;
-            var chosen = _picked.ToList();
+            var chosen = new List<Role>();
+            for (var i = 0; i < _pool.Count; i++)
+                if (_picked.Contains(i)) chosen.Add(_pool[i]);
             var callback = _onConfirm;
             Hide();
             callback?.Invoke(chosen);
@@ -327,14 +328,22 @@ namespace Coup.Game.UI
 
         private void Open()
         {
+            _epoch++;
+            _open = true;
             _root.gameObject.SetActive(true);
             CoupTween.PopIn(_sheet, _group, CoupTween.Normal);
         }
 
         public void Hide()
         {
-            if (_root == null || !_root.gameObject.activeSelf) return;
-            CoupTween.Fade(_group, 0f, CoupTween.Quick, () => _root.gameObject.SetActive(false));
+            if (_root == null || !_open) return;
+            _open = false;
+            var epoch = _epoch;
+            CoupTween.Fade(_group, 0f, CoupTween.Quick, () =>
+            {
+                if (epoch != _epoch || _open || _root == null) return;
+                _root.gameObject.SetActive(false);
+            });
         }
     }
 }

@@ -52,6 +52,20 @@ namespace Coup.Game.UI
         private BloodStream _blood;
         public bool HasBloodLine => _blood != null;
 
+        private readonly List<Banner> _banners = new();
+
+        private sealed class Banner
+        {
+            public int Seat;
+            public RectTransform Rect;
+            public CanvasGroup Group;
+            public Vector2 At;
+            public Vector2 From;
+            public Vector2 To;
+            public bool Fly;
+            public float Start;
+        }
+
         private sealed class BloodStream
         {
             public Vector2 From;
@@ -531,10 +545,96 @@ namespace Coup.Game.UI
 
         // ------------------------------------------------------------- driving
 
+        /// <summary>Drops a title still hanging over this seat so the next action replaces it.</summary>
+        public void DismissBanners(int seat)
+        {
+            for (var i = _banners.Count - 1; i >= 0; i--)
+                if (_banners[i].Seat == seat) RetireBanner(i);
+        }
+
+        /// <summary>
+        /// Slams one title onto a player panel. <paramref name="at"/> is the centre of that panel.
+        /// </summary>
+        public void ShowBanner(Sprite sprite, Vector2 at, int seat, float width = 280f)
+        {
+            if (sprite == null || _root == null || sprite.rect.width < 1f) return;
+
+            DismissBanners(seat);
+            var height = width * (sprite.rect.height / sprite.rect.width);
+            var bounds = _root.rect;
+            var halfW = width * 0.5f;
+            var halfH = height * 0.5f;
+            at.x = Mathf.Clamp(at.x, bounds.xMin + halfW + 8f, bounds.xMax - halfW - 8f);
+            at.y = Mathf.Clamp(at.y, bounds.yMin + halfH + 8f, bounds.yMax - halfH - 8f);
+
+            var go = new GameObject("ActionBanner", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(_root, false);
+            rect.SetAsLastSibling();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(width, height);
+            rect.anchoredPosition = at;
+            rect.localScale = Vector3.one * 0.4f;
+            rect.localRotation = Quaternion.Euler(0f, 0f, -7f);
+
+            var image = go.GetComponent<Image>();
+            image.sprite = sprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+
+            var group = go.GetComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
+
+            _root.SetAsLastSibling();
+            _banners.Add(new Banner
+            {
+                Seat = seat,
+                Rect = rect,
+                Group = group,
+                At = at,
+                From = at,
+                To = at,
+                Start = Time.unscaledTime
+            });
+        }
+
+        /// <summary>
+        /// Carries a title from one player panel to another. It pops on the challenger,
+        /// arcs across, and settles on the player they called.
+        /// </summary>
+        public void FlyBanner(Sprite sprite, Vector2 from, Vector2 to, int seat, float width = 280f)
+        {
+            if (sprite == null || _root == null) return;
+            ShowBanner(sprite, from, seat, width);
+
+            var banner = _banners.Count > 0 ? _banners[_banners.Count - 1] : null;
+            if (banner == null || banner.Rect == null) return;
+
+            var half = banner.Rect.sizeDelta * 0.5f;
+            banner.Fly = true;
+            banner.From = ClampBanner(from, half);
+            banner.To = ClampBanner(to, half);
+            banner.At = banner.From;
+            banner.Rect.anchoredPosition = banner.From;
+        }
+
+        private Vector2 ClampBanner(Vector2 at, Vector2 half)
+        {
+            if (_root == null) return at;
+            var bounds = _root.rect;
+            at.x = Mathf.Clamp(at.x, bounds.xMin + half.x + 8f, bounds.xMax - half.x - 8f);
+            at.y = Mathf.Clamp(at.y, bounds.yMin + half.y + 8f, bounds.yMax - half.y - 8f);
+            return at;
+        }
+
         private void Update()
         {
             var now = Time.unscaledTime;
             TickBlood(now);
+            TickBanners(now);
             if (_live.Count == 0) return;
 
             for (var i = _live.Count - 1; i >= 0; i--)
@@ -584,6 +684,140 @@ namespace Coup.Game.UI
 
                 _live[i] = a;
             }
+        }
+
+        /// <summary>Pops the title up, holds it, then lets it drift away inside the event pause.</summary>
+        private void TickBanners(float now)
+        {
+            const float pop = 0.22f;
+            const float settle = 0.36f;
+            const float hold = 0.85f;
+            const float end = 1.15f;
+
+            for (var i = _banners.Count - 1; i >= 0; i--)
+            {
+                var banner = _banners[i];
+                if (banner.Rect == null)
+                {
+                    _banners.RemoveAt(i);
+                    continue;
+                }
+
+                var t = now - banner.Start;
+                if (banner.Fly)
+                {
+                    if (t >= end) { RetireBanner(i); continue; }
+                    TickFlight(banner, t);
+                    continue;
+                }
+
+                if (t >= end)
+                {
+                    RetireBanner(i);
+                    continue;
+                }
+
+                float scale;
+                float alpha;
+                float rise;
+                float angle;
+                if (t < pop)
+                {
+                    var u = EaseOutBack(Mathf.Clamp01(t / pop));
+                    scale = Mathf.LerpUnclamped(0.4f, 1.08f, u);
+                    alpha = Mathf.Clamp01(t / 0.1f);
+                    rise = Mathf.Lerp(-28f, 6f, 1f - Mathf.Pow(1f - Mathf.Clamp01(t / pop), 3f));
+                    angle = Mathf.Lerp(-7f, 2f, u);
+                }
+                else if (t < settle)
+                {
+                    var u = (t - pop) / (settle - pop);
+                    scale = Mathf.Lerp(1.08f, 1f, u);
+                    alpha = 1f;
+                    rise = Mathf.Lerp(6f, 0f, u);
+                    angle = Mathf.Lerp(2f, 0f, u);
+                }
+                else if (t < hold)
+                {
+                    scale = 1f;
+                    alpha = 1f;
+                    rise = 0f;
+                    angle = 0f;
+                }
+                else
+                {
+                    var u = (t - hold) / (end - hold);
+                    scale = Mathf.Lerp(1f, 1.05f, u);
+                    alpha = 1f - u;
+                    rise = Mathf.Lerp(0f, 18f, u);
+                    angle = 0f;
+                }
+
+                banner.Rect.localScale = new Vector3(scale, scale, 1f);
+                banner.Rect.anchoredPosition = banner.At + new Vector2(0f, rise);
+                banner.Rect.localEulerAngles = new Vector3(0f, 0f, angle);
+                banner.Group.alpha = alpha;
+            }
+        }
+
+        /// <summary>Leaves the challenger's panel, arcs, and lands on the player they called.</summary>
+        private void TickFlight(Banner banner, float t)
+        {
+            const float appear = 0.16f;
+            const float travelEnd = 0.82f;
+            const float life = 1.15f;
+
+            float scale;
+            float alpha;
+            float angle;
+            Vector2 pos;
+
+            if (t < appear)
+            {
+                var u = EaseOutBack(Mathf.Clamp01(t / appear));
+                scale = Mathf.LerpUnclamped(0.35f, 1f, u);
+                alpha = Mathf.Clamp01(t / 0.08f);
+                pos = banner.From;
+                angle = Mathf.Lerp(-8f, 0f, u);
+            }
+            else if (t < travelEnd)
+            {
+                var u = (t - appear) / (travelEnd - appear);
+                var eased = 1f - Mathf.Pow(1f - u, 3f);
+                pos = Vector2.LerpUnclamped(banner.From, banner.To, eased);
+                pos.y += Mathf.Sin(u * Mathf.PI) * 72f;
+                var tilt = Mathf.Clamp((banner.To.x - banner.From.x) * 0.015f, -14f, 14f);
+                scale = Mathf.Lerp(1f, 1.06f, Mathf.Sin(u * Mathf.PI));
+                alpha = 1f;
+                angle = Mathf.Lerp(tilt, 0f, eased);
+            }
+            else
+            {
+                var u = Mathf.Clamp01((t - travelEnd) / (life - travelEnd));
+                scale = 1f;
+                alpha = 1f - u * u;
+                pos = banner.To;
+                angle = 0f;
+            }
+
+            banner.Rect.localScale = new Vector3(scale, scale, 1f);
+            banner.Rect.anchoredPosition = pos;
+            banner.Rect.localEulerAngles = new Vector3(0f, 0f, angle);
+            banner.Group.alpha = alpha;
+        }
+
+        private void RetireBanner(int index)
+        {
+            var banner = _banners[index];
+            _banners.RemoveAt(index);
+            if (banner.Rect != null) Destroy(banner.Rect.gameObject);
+        }
+
+        private static float EaseOutBack(float t)
+        {
+            const float c1 = 1.70158f;
+            const float c3 = c1 + 1f;
+            return 1f + c3 * Mathf.Pow(t - 1f, 3f) + c1 * Mathf.Pow(t - 1f, 2f);
         }
 
         // ---------------------------------------------------------------- pool

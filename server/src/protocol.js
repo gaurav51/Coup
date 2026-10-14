@@ -51,7 +51,7 @@ export const protocolDocument = {
   server: {
     "lobby:state": "Public table list. Sent privately so each payload can mark which seat is yours.",
     "game:log": "Full public history. Replaces the client's log. Sent when a match starts and when a seat resumes.",
-    "game:event": "One new public rules event, in order. Never contains a hidden card.",
+    "game:event": "One new public rules event, in order. Never contains a hidden card. hold is milliseconds the table should wait before the next event, so a title or a challenge can finish.",
     "game:state": "This socket's private view: own hand, public coins and revealed cards, and the moves this seat may make.",
     "game:over": "{ seat, name } once, when a winner is decided.",
     "action:rejected": "{ message } when a command is illegal. The ack is also { ok: false, error }.",

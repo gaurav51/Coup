@@ -1,5 +1,6 @@
 import { Deck } from "./deck.js";
 import { GameError } from "./errors.js";
+import { animationHold } from "./pacing.js";
 import {
   ACTIONS,
   EXCHANGE_DRAW_COUNT,
@@ -592,6 +593,7 @@ export class CoupGame {
       amount: partial.amount ?? 0,
       reason: partial.reason ?? null,
     };
+    event.hold = animationHold(event);
     event.text = describe(this, event);
     this.events.push(event);
   }

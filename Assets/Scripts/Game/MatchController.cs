@@ -43,7 +43,21 @@ namespace Coup.Game
         private GameDriver _driver;
         private bool _humanActed;
         private Coroutine _pump;
-        private float _beat;
+        private Coroutine _playback;
+        private readonly Queue<Beat> _beats = new();
+
+        /// <summary>True while a title or a challenge is still on screen. Input waits.</summary>
+        public bool Presenting { get; private set; }
+
+        private struct Beat
+        {
+            public GameEvent Event;
+            public bool HasEvent;
+            public bool Instant;
+            public JsonValue State;
+            public bool ApplyState;
+            public List<JsonValue> Log;
+        }
 
         /// <summary>
         /// A block chosen while the claim is still being challenged. It is played
@@ -93,6 +107,23 @@ namespace Coup.Game
         public void ShowServerState(JsonValue state, List<JsonValue> openingLog)
         {
             if (state == null) return;
+            // The board updates after the events that caused it, so a challenge
+            // can finish before the cards and coins jump to the result.
+            Enqueue(new Beat { ApplyState = true, State = state, Log = openingLog });
+        }
+
+        public void ShowServerEvent(JsonValue payload)
+        {
+            if (payload == null) return;
+            var seq = RemoteTable.Sequence(payload);
+            if (seq > 0 && seq <= _lastServerEvent) return;
+            if (seq > _lastServerEvent) _lastServerEvent = seq;
+            Enqueue(new Beat { HasEvent = true, Event = RemoteTable.ReadEvent(payload) });
+        }
+
+        private void ApplyServerState(JsonValue state)
+        {
+            if (state == null) return;
             var view = RemoteTable.Read(state);
             if (view.Seats == null || view.Seats.Count < 2) return;
 
@@ -104,17 +135,6 @@ namespace Coup.Game
                 Game.Apply(view);
 
             StateChanged?.Invoke();
-            if (openingLog == null) return;
-            for (var i = 0; i < openingLog.Count; i++) ShowServerEvent(openingLog[i]);
-        }
-
-        public void ShowServerEvent(JsonValue payload)
-        {
-            if (payload == null || Game == null) return;
-            var seq = RemoteTable.Sequence(payload);
-            if (seq > 0 && seq <= _lastServerEvent) return;
-            if (seq > _lastServerEvent) _lastServerEvent = seq;
-            EventOccurred?.Invoke(RemoteTable.ReadEvent(payload));
         }
 
         public void StartMatch()
@@ -153,24 +173,91 @@ namespace Coup.Game
 
         private void OnRulesEvent(GameEvent e)
         {
-            EventOccurred?.Invoke(e);
+            Enqueue(new Beat { HasEvent = true, Event = e });
+        }
 
-            // A challenge has to stay on screen long enough to show the card,
-            // and a proven claim then has to finish its swap back into the deck.
-            if (e.Kind == GameEventKind.CardReplaced) _beat = Mathf.Max(_beat, 2.3f);
-            else if (e.Kind == GameEventKind.ChallengeWon) _beat = Mathf.Max(_beat, 1.3f);
-            else if (e.Kind == GameEventKind.ChallengeDeclared) _beat = Mathf.Max(_beat, 0.95f);
-            else if (e.Kind == GameEventKind.InfluenceLost && e.Reason == LossReason.FailedChallenge)
-                _beat = Mathf.Max(_beat, 1.45f);
+        /// <summary>
+        /// Plays queued beats one at a time. Each event's hold — from the server,
+        /// or the same table locally — passes before the next event or the board update.
+        /// </summary>
+        private void Enqueue(Beat beat)
+        {
+            _beats.Enqueue(beat);
+            Presenting = true;
+            if (_playback == null) _playback = StartCoroutine(PlayBeats());
+        }
+
+        private IEnumerator PlayBeats()
+        {
+            while (_beats.Count > 0)
+            {
+                var beat = _beats.Dequeue();
+                if (beat.HasEvent && beat.Event != null)
+                {
+                    EventOccurred?.Invoke(beat.Event);
+                    var hold = HoldSeconds(beat.Event, beat.Instant);
+                    if (hold > 0f) yield return new WaitForSecondsRealtime(hold);
+                }
+
+                if (!beat.ApplyState) continue;
+
+                ApplyServerState(beat.State);
+                var log = beat.Log;
+                if (log == null || log.Count == 0) continue;
+
+                // A resumed seat already lived these events. Replay the log, but
+                // don't make the player watch the whole match again.
+                var instant = log.Count > 4;
+                for (var i = 0; i < log.Count; i++)
+                {
+                    var replay = RemoteTable.ReadEvent(log[i]);
+                    EventOccurred?.Invoke(replay);
+                    var hold = HoldSeconds(replay, instant);
+                    if (hold > 0f) yield return new WaitForSecondsRealtime(hold);
+                }
+            }
+
+            Presenting = false;
+            _playback = null;
+        }
+
+        /// <summary>Same pauses as server/src/pacing.js. A server hold, when present, wins.</summary>
+        private float HoldSeconds(GameEvent e, bool instant)
+        {
+            if (instant || e == null) return 0f;
+            if (e.HoldMs > 0) return e.HoldMs / 1000f;
+
+            switch (e.Kind)
+            {
+                case GameEventKind.ActionDeclared:
+                    return e.Action is ActionKind.Tax or ActionKind.Steal or ActionKind.Assassinate
+                        or ActionKind.Exchange or ActionKind.Coup ? 1.3f : 0.45f;
+                case GameEventKind.BlockDeclared: return 1.1f;
+                case GameEventKind.ChallengeDeclared: return 1.3f;
+                case GameEventKind.ChallengeWon: return 1.5f;
+                case GameEventKind.ChallengeLost: return 0.8f;
+                case GameEventKind.CardReplaced: return 1.7f;
+                case GameEventKind.InfluenceLost:
+                    return e.Reason == LossReason.FailedChallenge ? 1.45f : 1.1f;
+                case GameEventKind.CoinsChanged: return 0.7f;
+                case GameEventKind.PlayerEliminated: return 0.9f;
+                case GameEventKind.ExchangeCompleted: return 0.9f;
+                case GameEventKind.ExchangeDrawn: return 0.4f;
+                case GameEventKind.ActionResolved:
+                case GameEventKind.ActionFailed: return 0.5f;
+                case GameEventKind.TurnStarted: return 0.45f;
+                case GameEventKind.GameOver: return 0.8f;
+                default: return 0f;
+            }
         }
 
         private IEnumerator Pump()
         {
+            yield return new WaitUntil(() => !Presenting);
             StateChanged?.Invoke();
 
             while (Game.Phase != GamePhase.GameOver)
             {
-                _beat = resolveBeat;
                 var seat = _driver.SeatToAct();
                 if (seat < 0) break;
 
@@ -188,10 +275,12 @@ namespace Coup.Game
                 // A block picked during the challenge resolves here, before the UI
                 // draws, so the steal cannot slip through while that choice waits.
                 ApplyQueuedBlock();
+                if (Presenting) yield return new WaitUntil(() => !Presenting);
+                else yield return new WaitForSecondsRealtime(resolveBeat);
                 StateChanged?.Invoke();
-                yield return new WaitForSecondsRealtime(_beat);
             }
 
+            if (Presenting) yield return new WaitUntil(() => !Presenting);
             StateChanged?.Invoke();
         }
 
@@ -199,6 +288,7 @@ namespace Coup.Game
 
         public void HumanDeclare(ActionKind kind, int target = -1)
         {
+            if (Presenting) return;
             if (_online != null)
             {
                 _online.Declare(kind, target);
@@ -210,6 +300,7 @@ namespace Coup.Game
 
         public void HumanChallenge()
         {
+            if (Presenting) return;
             if (_online != null)
             {
                 _online.Challenge();
@@ -225,6 +316,7 @@ namespace Coup.Game
 
         public void HumanBlock(Role role)
         {
+            if (Presenting) return;
             if (_online != null)
             {
                 _online.Block(role);
@@ -278,6 +370,7 @@ namespace Coup.Game
 
         public void HumanPass()
         {
+            if (Presenting) return;
             if (_online != null)
             {
                 _online.Pass();
@@ -297,6 +390,7 @@ namespace Coup.Game
 
         public void HumanLoseInfluence(Role role)
         {
+            if (Presenting) return;
             if (_online != null)
             {
                 _online.Lose(role);
@@ -308,6 +402,7 @@ namespace Coup.Game
 
         public void HumanExchangeKeep(IReadOnlyList<Role> keep)
         {
+            if (Presenting) return;
             if (_online != null)
             {
                 _online.Exchange(keep);
@@ -316,6 +411,9 @@ namespace Coup.Game
 
             Submit(() => Game.ChooseExchangeKeep(keep));
         }
+
+        /// <summary>The server refused the last move. Redraw so a closed picker can be tried again.</summary>
+        public void Rejected() => StateChanged?.Invoke();
 
         /// <summary>
         /// Applies a human decision. Illegal input is reported rather than thrown at

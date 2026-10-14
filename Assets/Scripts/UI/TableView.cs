@@ -1222,6 +1222,34 @@ namespace Coup.Game.UI
             HitSeat(seat);
         }
 
+        /// <summary>One title for the action. Character art is reserved for a block.</summary>
+        private void ShowActionBanner(GameEvent e)
+        {
+            if (_vfx == null || art == null || !e.Action.HasValue) return;
+            var sprite = art.Callout(e.Action.Value);
+            if (sprite == null) return;
+            var cover = PanelCover(e.PlayerIndex);
+            _vfx.ShowBanner(sprite, cover.Center, e.PlayerIndex, cover.Width);
+        }
+
+        /// <summary>The lost-influence title covers the panel of the player who revealed a card.</summary>
+        private void ShowInfluenceLostBanner(GameEvent e)
+        {
+            if (_vfx == null || art == null || art.influenceLostCallout == null) return;
+            var cover = PanelCover(e.PlayerIndex);
+            _vfx.ShowBanner(art.influenceLostCallout, cover.Center, e.PlayerIndex, cover.Width);
+        }
+
+        /// <summary>A block claims one character, so that character's title is the only banner.</summary>
+        private void ShowRoleBanner(GameEvent e)
+        {
+            if (_vfx == null || art == null || !e.Role.HasValue) return;
+            var sprite = art.Callout(e.Role.Value);
+            if (sprite == null) return;
+            var cover = PanelCover(e.PlayerIndex);
+            _vfx.ShowBanner(sprite, cover.Center, e.PlayerIndex, cover.Width);
+        }
+
         private void PlayActionFeel(GameEvent e)
         {
             if (!e.Action.HasValue || _vfx == null) return;
@@ -1290,8 +1318,9 @@ namespace Coup.Game.UI
 
             var challenger = SeatPosition(e.PlayerIndex);
             var claimant = SeatPosition(e.TargetIndex);
+            FlyChallenge(e);
             _vfx.Clash(challenger, claimant);
-            _vfx.Flash(new Color(0.55f, 0.08f, 0.1f, 0.16f), 0.28f);
+            _vfx.Flash(new Color(0.55f, 0.08f, 0.1f, 0.18f), 0.28f);
             HitSeat(e.PlayerIndex);
             HitSeat(e.TargetIndex);
 
@@ -1303,6 +1332,15 @@ namespace Coup.Game.UI
                 _vfx.Streak(challenger, claimant, red, 8);
                 _vfx.Streak(claimant, challenger, gold, 8);
             });
+        }
+
+        /// <summary>The Challenge title leaves the challenger and lands on the player they called.</summary>
+        private void FlyChallenge(GameEvent e)
+        {
+            if (_vfx == null || art == null || art.challengeCallout == null) return;
+            var from = PanelCover(e.PlayerIndex);
+            var to = e.TargetIndex >= 0 ? PanelCover(e.TargetIndex) : from;
+            _vfx.FlyBanner(art.challengeCallout, from.Center, to.Center, e.PlayerIndex, from.Width);
         }
 
         /// <summary>
@@ -1426,10 +1464,12 @@ namespace Coup.Game.UI
 
                 case GameEventKind.ActionDeclared:
                     PlayActionFeel(e);
+                    ShowActionBanner(e);
                     break;
 
                 case GameEventKind.BlockDeclared:
                     PlayBlockFeel(e);
+                    ShowRoleBanner(e);
                     break;
 
                 case GameEventKind.ActionResolved:
@@ -1447,6 +1487,7 @@ namespace Coup.Game.UI
 
                 case GameEventKind.InfluenceLost:
                 {
+                    ShowInfluenceLostBanner(e);
                     var panel = _panels.FirstOrDefault(p => p.Seat == e.PlayerIndex);
                     if (panel != null) CoupTween.Shake(panel.root, 14f, CoupTween.Slow);
 
@@ -1579,6 +1620,23 @@ namespace Coup.Game.UI
 
             var panel = _panels.FirstOrDefault(p => p.Seat == seat);
             return panel != null ? _vfx.PositionOf(panel.root) : Vector2.zero;
+        }
+
+        /// <summary>Centre and width of a seat's panel, so the title sits on that panel.</summary>
+        private (Vector2 Center, float Width) PanelCover(int seat)
+        {
+            var panel = seat == match.humanSeat
+                ? _hudRect
+                : _panels.FirstOrDefault(p => p.Seat == seat)?.root;
+
+            if (panel == null || _vfx == null || _vfx.Layer == null)
+                return (SeatPosition(seat), 260f);
+
+            var center = (Vector2)_vfx.Layer.InverseTransformPoint(panel.TransformPoint(panel.rect.center));
+            var edge = (Vector2)_vfx.Layer.InverseTransformPoint(
+                panel.TransformPoint(new Vector3(panel.rect.xMax, panel.rect.center.y, 0f)));
+            var width = Mathf.Clamp(Mathf.Abs(edge.x - center.x) * 2f, 200f, 420f);
+            return (center, width);
         }
 
         private string Describe(GameEvent e)

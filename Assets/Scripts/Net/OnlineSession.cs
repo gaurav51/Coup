@@ -140,6 +140,7 @@ namespace Coup.Game
             catch (Exception ex)
             {
                 Debug.LogWarning($"[Coup] {ex.Message}");
+                _match.Rejected();
             }
         }
 

@@ -23,6 +23,7 @@ namespace Coup.EditorTools
         private const string Characters = "Assets/Sprites/04_Characters_And_Art_Reference";
         private const string Backgrounds = "Assets/Sprites/02_Backgrounds";
         private const string Generated = "Assets/Art/Generated";
+        private const string ActionCallouts = "Assets/Sprites/Actions";
         private const string ArtAssetPath = "Assets/Art/CoupArt.asset";
         private const string ScenePath = "Assets/Scenes/Game.unity";
 
@@ -57,22 +58,22 @@ namespace Coup.EditorTools
 
             art.roles = new[]
             {
-                Role(Core.Role.Duke, "Duke", "Take 3 coins.\nBlocks foreign aid.", "#7B3FA0"),
-                Role(Core.Role.Captain, "Captain", "Steal 2 coins.\nBlocks stealing.", "#1E3A6E"),
-                Role(Core.Role.Assassin, "Assassin", "Pay 3 coins to assassinate.", "#1A1F38"),
-                Role(Core.Role.Contessa, "Contessa", "Blocks assassination.", "#B52430"),
-                Role(Core.Role.Ambassador, "Ambassador", "Exchange cards.\nBlocks stealing.", "#D4791E")
+                Role(Core.Role.Duke, "Duke", "Take 3 coins.\nBlocks foreign aid.", "#7B3FA0", "DukeEffect"),
+                Role(Core.Role.Captain, "Captain", "Steal 2 coins.\nBlocks stealing.", "#1E3A6E", "Captain Effect"),
+                Role(Core.Role.Assassin, "Assassin", "Pay 3 coins to assassinate.", "#1A1F38", "Assasin Effect"),
+                Role(Core.Role.Contessa, "Contessa", "Blocks assassination.", "#B52430", "Contessa Effect"),
+                Role(Core.Role.Ambassador, "Ambassador", "Exchange cards.\nBlocks stealing.", "#D4791E", "Ambassador Effect")
             };
 
             art.actions = new[]
             {
-                Action(ActionKind.Income, "Income", "+1 Coin", "Action_Income"),
-                Action(ActionKind.ForeignAid, "Foreign Aid", "+2 Coins", "Action_Foreign_Aid"),
-                Action(ActionKind.Tax, "Tax", "Take 3 Coins", "Action_Tax"),
-                Action(ActionKind.Steal, "Steal", "Take 2 Coins", "Action_Steal"),
-                Action(ActionKind.Assassinate, "Assassinate", "Pay 3 Coins", "Action_Assassinate"),
-                Action(ActionKind.Exchange, "Exchange", "Swap Cards", "Action_Exchange"),
-                Action(ActionKind.Coup, "Coup", "Pay 7 Coins", "Action_Coup")
+                Action(ActionKind.Income, "Income", "+1 Coin", "Action_Income", null),
+                Action(ActionKind.ForeignAid, "Foreign Aid", "+2 Coins", "Action_Foreign_Aid", null),
+                Action(ActionKind.Tax, "Tax", "Take 3 Coins", "Action_Tax", "Tax Effect"),
+                Action(ActionKind.Steal, "Steal", "Take 2 Coins", "Action_Steal", "Steal Effect"),
+                Action(ActionKind.Assassinate, "Assassinate", "Pay 3 Coins", "Action_Assassinate", "Assasinate Effect"),
+                Action(ActionKind.Exchange, "Exchange", "Swap Cards", "Action_Exchange", "Exchange effect"),
+                Action(ActionKind.Coup, "Coup", "Pay 7 Coins", "Action_Coup", "Coup Effect")
             };
 
             art.roundedPanel = Load($"{Generated}/Panel_Rounded.png");
@@ -97,6 +98,8 @@ namespace Coup.EditorTools
 
             art.blockButton = Load($"{Individual}/Buttons/Block_Button.png");
             art.challengeButton = Load($"{Individual}/Buttons/Challenge_Button.png");
+            art.challengeCallout = Load($"{ActionCallouts}/Challenge.png");
+            art.influenceLostCallout = Load($"{ActionCallouts}/Influence Lost effect.png");
             art.menuButton = Load($"{Individual}/Buttons/Menu_Button.png");
             art.settingsButton = Load($"{Individual}/Buttons/Settings_Button.png");
 
@@ -106,7 +109,7 @@ namespace Coup.EditorTools
             return art;
         }
 
-        private static CoupArt.RoleArt Role(Role role, string name, string ability, string hex)
+        private static CoupArt.RoleArt Role(Role role, string name, string ability, string hex, string calloutFile)
         {
             ColorUtility.TryParseHtmlString(hex, out var colour);
             return new CoupArt.RoleArt
@@ -117,17 +120,19 @@ namespace Coup.EditorTools
                 accent = colour,
                 cardFace = Load($"{Characters}/Card_{role}.png"),
                 portrait = Load($"{Generated}/Portrait_{role}.png"),
-                backdrop = Load($"{Characters}/Backdrop_{role}.png")
+                backdrop = Load($"{Characters}/Backdrop_{role}.png"),
+                callout = Load($"{ActionCallouts}/{calloutFile}.png")
             };
         }
 
-        private static CoupArt.ActionArt Action(ActionKind kind, string label, string subtitle, string file) =>
+        private static CoupArt.ActionArt Action(ActionKind kind, string label, string subtitle, string file, string calloutFile) =>
             new CoupArt.ActionArt
             {
                 action = kind,
                 label = label,
                 subtitle = subtitle,
-                icon = Load($"{Individual}/Buttons/{file}.png")
+                icon = Load($"{Individual}/Buttons/{file}.png"),
+                callout = string.IsNullOrEmpty(calloutFile) ? null : Load($"{ActionCallouts}/{calloutFile}.png")
             };
 
         private static Sprite Load(string path)

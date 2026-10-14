@@ -1,6 +1,9 @@
 import { decide } from "./bot-mind.js";
 import { GameError, RoomError } from "./errors.js";
+import { reactionBeat } from "./pacing.js";
 import { canBlockWith } from "./rules.js";
+
+export { reactionBeat };
 
 const timers = new Map();
 
@@ -11,22 +14,10 @@ export const BOT_THINK_MS = 900;
 export const RESOLVE_BEAT_MS = 450;
 
 /**
- * How long the table holds after these events, before the next bot may act.
- * A challenge has to stay up long enough to show the card, and a proven claim
- * then has to finish its swap back into the deck. Same beats as the Unity pump.
+ * Think time, plus the animation hold on every event that just landed.
+ * Opening the table, which has no new events, is think time only.
+ * The holds are the same pauses the client waits between beats.
  */
-export function reactionBeat(events) {
-  let beat = RESOLVE_BEAT_MS;
-  for (const event of events ?? []) {
-    if (event.kind === "CardReplaced") beat = Math.max(beat, 2300);
-    else if (event.kind === "ChallengeWon") beat = Math.max(beat, 1300);
-    else if (event.kind === "ChallengeDeclared") beat = Math.max(beat, 950);
-    else if (event.kind === "InfluenceLost" && event.reason === "FailedChallenge") beat = Math.max(beat, 1450);
-  }
-  return beat;
-}
-
-/** Think time, plus the beat for the events that just landed. Opening the table is think time only. */
 export function delayBeforeBot(events) {
   if (!events?.length) return BOT_THINK_MS;
   return reactionBeat(events) + BOT_THINK_MS;

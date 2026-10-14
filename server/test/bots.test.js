@@ -120,7 +120,7 @@ test("challenge reveals hold the table longer than an ordinary action", () => {
       { kind: "CardReplaced" },
       { kind: "InfluenceLost", reason: "LostChallenge" },
     ]),
-    3200,
+    6500,
   );
   assert.equal(delayBeforeBot([{ kind: "InfluenceLost", reason: "FailedChallenge" }]), 2350);
 });

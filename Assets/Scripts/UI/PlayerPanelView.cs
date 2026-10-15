@@ -40,6 +40,8 @@ namespace Coup.Game.UI
         public int Seat { get; private set; }
         public bool Targetable { get; private set; }
 
+        private const float CardY = -120f;
+
         private CoupArt _art;
         private CardView _cardPrefab;
         private readonly List<CardView> _cards = new();
@@ -61,21 +63,11 @@ namespace Coup.Game.UI
             if (coinIcon != null) coinIcon.enabled = false;
             if (coinText != null)
             {
-                var coins = coinText.rectTransform;
-                coins.anchorMin = coins.anchorMax = coins.pivot = new Vector2(0.5f, 1f);
-                coins.anchoredPosition = new Vector2(0f, -168f);
-                coins.sizeDelta = new Vector2(160f, 40f);
-                coinText.alignment = TextAlignmentOptions.Center;
                 coinText.richText = true;
                 if (coinText.spriteAsset == null)
                     coinText.spriteAsset = TMP_Settings.defaultSpriteAsset;
             }
-            if (claimText != null)
-            {
-                claimText.enableAutoSizing = true;
-                claimText.fontSizeMin = 13f;
-                claimText.fontSizeMax = 18f;
-            }
+            LayoutReadout();
         }
 
         /// <summary>
@@ -86,6 +78,91 @@ namespace Coup.Game.UI
         {
             _seatScale = Vector3.one * Mathf.Max(0.4f, scale);
             if (root != null) root.localScale = _seatScale;
+            // The seat itself stays small so the cards fit. The words are sized
+            // in screen pixels, or a shrunk seat would leave the name unreadably small.
+            LayoutReadout();
+        }
+
+        /// <summary>
+        /// Name, coins and the last claim, in screen pixels. The seat's scale is
+        /// divided out so the type stays the same size on every chair.
+        /// </summary>
+        private void LayoutReadout()
+        {
+            var seat = Mathf.Max(_seatScale.x, 0.4f);
+            float Local(float screenPx) => screenPx / seat;
+
+            // The name sits above the panel. The profile card is tall enough that
+            // the initial and a readable coin count both fit inside it.
+            var nameH = Local(50f);
+            var claimH = Local(44f);
+            var nameCenter = Local(8f) + nameH * 0.5f;
+            var claimCenter = 58f + 46f + Local(8f) + claimH * 0.5f;
+
+            var profile = transform.Find("Avatar") as RectTransform;
+            if (profile != null)
+            {
+                profile.anchorMin = profile.anchorMax = new Vector2(0.5f, 1f);
+                profile.pivot = new Vector2(0.5f, 0.5f);
+                profile.anchoredPosition = new Vector2(0f, -108f);
+                profile.sizeDelta = new Vector2(150f, 196f);
+            }
+
+            Place(avatarInitial, 56f, new Vector2(0f, -62f), new Vector2(130f, 72f));
+            Place(nameText, Local(46f), new Vector2(0f, nameCenter), new Vector2(Local(280f), nameH));
+            Place(coinText, 36f / seat, new Vector2(0f, -156f), new Vector2(140f / seat, 56f / seat));
+            if (coinText != null) coinText.color = new Color(0.95f, 0.82f, 0.35f, coinText.color.a);
+
+            if (claimBadge != null)
+            {
+                var badge = (RectTransform)claimBadge.transform;
+                badge.anchorMin = badge.anchorMax = new Vector2(0.5f, 1f);
+                badge.pivot = new Vector2(0.5f, 0.5f);
+                badge.anchoredPosition = new Vector2(0f, -claimCenter);
+                badge.sizeDelta = new Vector2(Local(240f), claimH);
+                badge.localScale = Vector3.one;
+            }
+
+            if (claimText != null)
+            {
+                claimText.enableAutoSizing = false;
+                claimText.fontSize = Local(34f);
+                claimText.fontStyle = FontStyles.Bold;
+                claimText.alignment = TextAlignmentOptions.Center;
+                claimText.textWrappingMode = TextWrappingModes.NoWrap;
+                claimText.overflowMode = TextOverflowModes.Overflow;
+            }
+
+            BringReadoutForward();
+        }
+
+        /// <summary>
+        /// The cards are laid out after the labels and would paint over them.
+        /// The name, the coins and the claim stay in front.
+        /// </summary>
+        private void BringReadoutForward()
+        {
+            if (avatarInitial != null) avatarInitial.rectTransform.SetAsLastSibling();
+            if (nameText != null) nameText.rectTransform.SetAsLastSibling();
+            if (coinText != null) coinText.rectTransform.SetAsLastSibling();
+            if (claimBadge != null) claimBadge.transform.SetAsLastSibling();
+        }
+
+        private static void Place(TextMeshProUGUI text, float size, Vector2 center, Vector2 box)
+        {
+            if (text == null) return;
+            var rt = text.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = center;
+            rt.sizeDelta = box;
+            rt.localScale = Vector3.one;
+            text.enableAutoSizing = false;
+            text.fontSize = size;
+            text.fontStyle = FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Overflow;
         }
 
         public void Refresh(PlayerState player, bool isActing, bool targetable, Role? lastClaim, string deed = null)
@@ -167,6 +244,7 @@ namespace Coup.Game.UI
 
             if (cardSlots != null) cardSlots.SetAsLastSibling();
             LayoutCards(player.InfluenceCount, player.Revealed.Count);
+            BringReadoutForward();
         }
 
         public CardView GetCard(int index) =>
@@ -195,7 +273,7 @@ namespace Coup.Game.UI
 
             const float width = 210f;
             const float gap = 8f;
-            const float y = -120f;
+            const float y = CardY;
 
             var span = count * width + Mathf.Max(0, count - 1) * gap;
             var x = -span * 0.5f;

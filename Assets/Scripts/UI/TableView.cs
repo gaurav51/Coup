@@ -122,6 +122,7 @@ namespace Coup.Game.UI
 
             _turnText = FindText("Stage/TopBar/Turn");
             _logText = FindText("Stage/TopBar/Log");
+            EnlargeHeaderLog();
             _deckRect = FindRect("Stage/DrawDeck");
             _discardRect = FindRect("Stage/Discard");
             _coinPileRect = FindRect("Stage/CoinPile");
@@ -246,9 +247,10 @@ namespace Coup.Game.UI
             _turnText.color = UIFactory.Gold;
             _turnText.fontStyle = FontStyles.Bold;
 
-            _logText = UIFactory.Text("Log", bar, "", 22, new Vector2(620, 86), new Vector2(-170, -22));
-            _logText.alignment = TextAlignmentOptions.TopLeft;
+            _logText = UIFactory.Text("Log", bar, "", 38, new Vector2(640, 136), new Vector2(-160, 0));
+            _logText.alignment = TextAlignmentOptions.Left;
             _logText.color = new Color(0.78f, 0.76f, 0.70f);
+            EnlargeHeaderLog();
 
             var rules = TextButton("Rules", bar, "RULES", new Vector2(150, 76), new Vector2(300, 0));
             rules.onClick.AddListener(ShowRules);
@@ -1127,6 +1129,21 @@ namespace Coup.Game.UI
             _modal.ShowChoices("Stop it with which card?",
                 "They can say you don't have it. Picking a card you don't hold is a bluff — if they catch you, you lose a card.",
                 choices);
+        }
+
+        /// <summary>
+        /// The header bar is scaled down to fit the table, which leaves the log
+        /// unreadably small. Size the lines for the screen, not the shrunken bar.
+        /// </summary>
+        private void EnlargeHeaderLog()
+        {
+            if (_logText == null) return;
+            _logText.enableAutoSizing = false;
+            _logText.fontSize = 38f;
+            _logText.alignment = TextAlignmentOptions.MidlineLeft;
+            var rt = _logText.rectTransform;
+            rt.sizeDelta = new Vector2(640f, 136f);
+            rt.anchoredPosition = new Vector2(-160f, 0f);
         }
 
         // -------------------------------------------------------------------- log

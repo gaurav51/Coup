@@ -167,31 +167,33 @@ namespace Coup.EditorTools
             avatar.color = PanelFillSoft;
             Anchor(avatar.gameObject, new Vector2(0.5f, 1f), new Vector2(0, -58), new Vector2(92, 92));
 
-            var initial = NewText("AvatarInitial", root.transform, "?", 44, TextAlignmentOptions.Center);
-            Anchor(initial.gameObject, new Vector2(0.5f, 1f), new Vector2(0, -58), new Vector2(92, 92));
+            var initial = NewText("AvatarInitial", root.transform, "?", 64, TextAlignmentOptions.Center);
+            Anchor(initial.gameObject, new Vector2(0.5f, 1f), new Vector2(0, -58), new Vector2(120, 120));
             initial.color = UIFactory.Gold;
             initial.fontStyle = FontStyles.Bold;
 
-            var nameText = NewText("Name", root.transform, "Player", 28, TextAlignmentOptions.Center);
-            Anchor(nameText.gameObject, new Vector2(0.5f, 1f), new Vector2(0, -128), new Vector2(270, 38));
+            var nameText = NewText("Name", root.transform, "Player", 48, TextAlignmentOptions.Center);
+            Anchor(nameText.gameObject, new Vector2(0.5f, 1f), new Vector2(0, -150), new Vector2(280, 64));
+            nameText.fontStyle = FontStyles.Bold;
 
             var coinIcon = NewImage("CoinIcon", root.transform, art.coin, preserveAspect: true);
             Anchor(coinIcon.gameObject, new Vector2(0.5f, 1f), new Vector2(-38, -168), new Vector2(34, 34));
 
-            var coinText = NewText("Coins", root.transform, "0", 30, TextAlignmentOptions.Left);
-            Anchor(coinText.gameObject, new Vector2(0.5f, 1f), new Vector2(28, -168), new Vector2(72, 40));
+            var coinText = NewText("Coins", root.transform, "0", 42, TextAlignmentOptions.Center);
+            Anchor(coinText.gameObject, new Vector2(0.5f, 1f), new Vector2(0, -220), new Vector2(220, 56));
             coinText.color = UIFactory.Gold;
             coinText.fontStyle = FontStyles.Bold;
 
             // Last claim: the single most useful thing to see on an opponent.
-            var claimBadge = NewUI("ClaimBadge", new Vector2(250, 40), root.transform);
-            Anchor(claimBadge, new Vector2(0.5f, 1f), new Vector2(0, -212), new Vector2(252, 38));
+            var claimBadge = NewUI("ClaimBadge", new Vector2(300, 52), root.transform);
+            Anchor(claimBadge, new Vector2(0.5f, 1f), new Vector2(0, -286), new Vector2(300, 52));
             claimBadge.AddComponent<CanvasGroup>();
             var claimBg = NewImage("Bg", claimBadge.transform, art.roundedPanel, preserveAspect: false);
             claimBg.type = Image.Type.Sliced;
             claimBg.color = new Color(0f, 0f, 0f, 0.65f);
             Stretch(claimBg.gameObject, 0);
-            var claimText = NewText("Text", claimBadge.transform, "", 20, TextAlignmentOptions.Center);
+            var claimText = NewText("Text", claimBadge.transform, "", 32, TextAlignmentOptions.Center);
+            claimText.fontStyle = FontStyles.Bold;
             Stretch(claimText.gameObject, 0);
             claimBadge.SetActive(false);
 

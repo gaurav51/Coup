@@ -11,6 +11,7 @@ connection between us.** Work lands as files; the other side picks it up.
 | Owns | image generation | Unity integration |
 | Writes to | `Assets/Sprites/Incoming/` **only** | everything else |
 | Reads | this file, `Assets/Sprites/Incoming/REVIEW.md` | the dropped PNGs |
+| Unity Editor | **no access** — not even reads | UnityMCP |
 
 ## Codex — scope
 
@@ -24,6 +25,9 @@ Name files `Card_<Role>_v2.png`. Never overwrite anything in
 `Assets/Art/`, or `ProjectSettings/`. Those are hand-tuned or Unity-generated,
 and edits from outside the Editor corrupt them. If something there looks wrong,
 write it into `REVIEW.md` instead of fixing it.
+
+**Do not drive UnityMCP** — see hard rule 4. Writing PNGs into `Incoming/` is
+the whole job; the Editor picks them up on its own.
 
 ## Claude Code — scope
 
@@ -46,6 +50,17 @@ Swaps **sprite references only** on prefabs. Never regenerates them.
    is a postprocessor covering all of `Assets/Sprites/` — sprite mode, alpha
    transparency, no mipmaps, clamp. Drop the PNG and it's configured on arrival.
    Don't hand-edit `.meta` files.
+4. **Only Claude Code drives UnityMCP.** `.codex/config.toml` points Codex at
+   the same Editor bridge on `127.0.0.1:8080`, so both agents *can* reach it —
+   but the Unity Editor is one shared mutable process. Two clients mutating the
+   AssetDatabase, saving scenes, or triggering domain reloads at the same time
+   corrupts prefabs and silently drops edits, and a call landing mid-reload
+   fails in ways that look like unrelated bugs.
+
+   Codex: don't call UnityMCP at all, reads included — a read during someone
+   else's write is how you end up reporting state that was never true. Need
+   something from the Editor (console errors, a prefab's layout, whether a
+   sprite imported)? Ask in `REVIEW.md`.
 
 ## Accent colors — authoritative
 

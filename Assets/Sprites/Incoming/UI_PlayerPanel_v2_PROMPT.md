@@ -1,0 +1,5 @@
+# Player panel v2
+
+Built-in image generation, transparent_background=true.
+
+Use case: stylized-concept. Production game UI asset: one compact square player information plaque for a royal intrigue card game. Perfectly front-facing orthographic, no perspective. Near-square silhouette with modest clipped corners, thin antique brushed gold double-bevel frame, tiny angular art-deco corner details, dark opaque midnight navy #0C182A enamel interior. Center 80 percent almost flat matte navy, just faint stone texture at edges. Understated premium digitally painted realistic metal, warm highlights restrained to rim, no glow. Fully transparent outside silhouette, isolated single sprite occupying most of 1024x1024 canvas with 4 percent clear margin. Entire plaque empty: no text, letters, numbers, symbols, portraits, icons, medallions, divider lines, crowns, jewels or watermark. Must remain legible as a small 150px mobile UI panel, elegant thin border rather than elaborate ornament. Match a navy marble and antique gold palace card-game UI.

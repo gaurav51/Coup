@@ -84,60 +84,35 @@ namespace Coup.Game.UI
         }
 
         /// <summary>
-        /// Name, coins and the last claim, in screen pixels. The seat's scale is
-        /// divided out so the type stays the same size on every chair.
-        ///
-        /// The 280px name box does overhang the canvas on the outermost seats, but
-        /// the name is centred in it and never fills it, so nothing is actually
-        /// clipped. Sliding the box inward to "fix" that only pushes the name into
-        /// the cards beside it.
+        /// Keeps the seat name, profile and coin count together inside its panel.
+        /// Text is sized in screen pixels while the panel follows the seat scale.
         /// </summary>
         private void LayoutReadout()
         {
             var seat = Mathf.Max(_seatScale.x, 0.4f);
-            float Local(float screenPx) => screenPx / seat;
-
-            // The name sits above the panel. The profile card is tall enough that
-            // the initial and a readable coin count both fit inside it.
-            var nameH = Local(50f);
-            var claimH = Local(44f);
-            var nameCenter = Local(8f) + nameH * 0.5f;
-            var claimCenter = 58f + 46f + Local(8f) + claimH * 0.5f;
-
+            float Local(float px) => px / seat;
+            // Horizontal identity badge: portrait left, live name and money right.
             var profile = transform.Find("Avatar") as RectTransform;
             if (profile != null)
             {
-                profile.anchorMin = profile.anchorMax = new Vector2(0.5f, 1f);
+                profile.anchorMin = profile.anchorMax = new Vector2(0.5f, 0.5f);
                 profile.pivot = new Vector2(0.5f, 0.5f);
-                profile.anchoredPosition = new Vector2(0f, -108f);
-                profile.sizeDelta = new Vector2(150f, 196f);
+                profile.anchoredPosition = new Vector2(-160f, 0f);
+                profile.sizeDelta = new Vector2(160f, 160f);
             }
-
-            Place(avatarInitial, 56f, new Vector2(0f, -62f), new Vector2(130f, 72f));
-            Place(nameText, Local(46f), new Vector2(0f, nameCenter), new Vector2(Local(280f), nameH));
-            Place(coinText, 36f / seat, new Vector2(0f, -156f), new Vector2(140f / seat, 56f / seat));
-            if (coinText != null) coinText.color = new Color(0.95f, 0.82f, 0.35f, coinText.color.a);
-
-            if (claimBadge != null)
+            Place(nameText, Local(25f), new Vector2(52f, -43f), new Vector2(245f, 52f));
+            if (nameText != null)
             {
-                var badge = (RectTransform)claimBadge.transform;
-                badge.anchorMin = badge.anchorMax = new Vector2(0.5f, 1f);
-                badge.pivot = new Vector2(0.5f, 0.5f);
-                badge.anchoredPosition = new Vector2(0f, -claimCenter);
-                badge.sizeDelta = new Vector2(Local(240f), claimH);
-                badge.localScale = Vector3.one;
+                nameText.enableAutoSizing = true;
+                nameText.fontSizeMin = Local(18f);
+                nameText.fontSizeMax = Local(25f);
+                nameText.alignment = TextAlignmentOptions.Left;
+                nameText.overflowMode = TextOverflowModes.Ellipsis;
             }
-
-            if (claimText != null)
-            {
-                claimText.enableAutoSizing = false;
-                claimText.fontSize = Local(34f);
-                claimText.fontStyle = FontStyles.Bold;
-                claimText.alignment = TextAlignmentOptions.Center;
-                claimText.textWrappingMode = TextWrappingModes.NoWrap;
-                claimText.overflowMode = TextOverflowModes.Overflow;
-            }
-
+            Place(coinText, Local(31f), new Vector2(52f, -107f), new Vector2(245f, 64f));
+            if (coinText != null) { coinText.alignment = TextAlignmentOptions.Left; coinText.color = Color.white; }
+            if (avatarInitial != null) avatarInitial.enabled = false;
+            if (claimBadge != null) claimBadge.SetActive(false);
             BringReadoutForward();
         }
 
@@ -164,7 +139,7 @@ namespace Coup.Game.UI
             rt.localScale = Vector3.one;
             text.enableAutoSizing = false;
             text.fontSize = size;
-            text.fontStyle = FontStyles.Bold;
+            text.fontStyle = FontStyles.UpperCase;
             text.alignment = TextAlignmentOptions.Center;
             text.textWrappingMode = TextWrappingModes.NoWrap;
             text.overflowMode = TextOverflowModes.Overflow;
@@ -276,7 +251,7 @@ namespace Coup.Game.UI
             var count = influence + revealed;
             if (count <= 0 || cardSlots == null) return;
 
-            const float width = 210f;
+            const float width = 150f;
             const float gap = 8f;
             const float y = CardY;
 

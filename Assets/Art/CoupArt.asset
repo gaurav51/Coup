@@ -62,27 +62,27 @@ MonoBehaviour:
   actions:
   - action: 0
     label: Income
-    subtitle: '+1 <sprite name="coin" tint=0>'
+    subtitle: +1 <sprite name="coin" tint=0>
     icon: {fileID: 21300000, guid: b7cb1223b7aef47e1a0a12d4184dcae5, type: 3}
     callout: {fileID: 0}
   - action: 1
     label: Foreign Aid
-    subtitle: '+2 <sprite name="coin" tint=0>'
+    subtitle: +2 <sprite name="coin" tint=0>
     icon: {fileID: 21300000, guid: 97c7042bf25154cc1bf54c60406f4621, type: 3}
     callout: {fileID: 0}
   - action: 3
     label: Tax
-    subtitle: 'Take 3 <sprite name="coin" tint=0>'
+    subtitle: Take 3 <sprite name="coin" tint=0>
     icon: {fileID: 21300000, guid: 51d0eb72fe4264f49b844a41e615db68, type: 3}
     callout: {fileID: 21300000, guid: 0946b5fccb89741b4b6e4f8810ffdc92, type: 3}
   - action: 4
     label: Steal
-    subtitle: 'Take 2 <sprite name="coin" tint=0>'
+    subtitle: Take 2 <sprite name="coin" tint=0>
     icon: {fileID: 21300000, guid: d93cb680bc8ac416b9b5d5ca7503c363, type: 3}
     callout: {fileID: 21300000, guid: 449272b4d4a544ecea8f39cbecd242ac, type: 3}
   - action: 5
     label: Assassinate
-    subtitle: 'Pay 3 <sprite name="coin" tint=0>'
+    subtitle: Pay 3 <sprite name="coin" tint=0>
     icon: {fileID: 21300000, guid: 8d52fdb05b00c40988f07785867c7beb, type: 3}
     callout: {fileID: 21300000, guid: 9a4ff46175b99460faf6bcbf9706ec51, type: 3}
   - action: 6
@@ -92,14 +92,14 @@ MonoBehaviour:
     callout: {fileID: 21300000, guid: ed0e1781ee1914b1dbf2adba3dbf6718, type: 3}
   - action: 2
     label: Coup
-    subtitle: 'Pay 7 <sprite name="coin" tint=0>'
+    subtitle: Pay 7 <sprite name="coin" tint=0>
     icon: {fileID: 21300000, guid: bcde6719aaa904fa0b269258cb2b5d95, type: 3}
     callout: {fileID: 21300000, guid: 2753e05c301d441c5acc88cb470ffb44, type: 3}
   cardBack: {fileID: 21300000, guid: c6eb9b9cb897c4184b7b481f6ec46a9c, type: 3}
   opponentCardBack: {fileID: 21300000, guid: e5b5a5e29c84041e8b5d2878fb9b427f, type: 3}
-  drawDeck: {fileID: 21300000, guid: 4cdd1437d78a4485b8dab25e9002fb98, type: 3}
-  discardDeck: {fileID: 21300000, guid: d1440f7f640e84a858d66a216538e46f, type: 3}
-  tableBackground: {fileID: 21300000, guid: c29b2f6f290f54c54848b8884487b85e, type: 3}
+  drawDeck: {fileID: 21300000, guid: e8e490fbfa2014b0088f11aa63b2e40c, type: 3}
+  discardDeck: {fileID: 21300000, guid: e8e490fbfa2014b0088f11aa63b2e40c, type: 3}
+  tableBackground: {fileID: 21300000, guid: 05983bcb39eb145fe87509d96e88229e, type: 3}
   coin: {fileID: 21300000, guid: 3cf41a273eb4a44c7a4c27be0db4216d, type: 3}
   coinPile: {fileID: 21300000, guid: 3c6803bb0600c46298511a7a12789670, type: 3}
   roundedPanel: {fileID: 21300000, guid: 3abff22c911094e66b68e11f0fee846e, type: 3}
@@ -117,5 +117,5 @@ MonoBehaviour:
   influenceLostCallout: {fileID: 21300000, guid: 9eba17ca006024ffd88df4286d009746, type: 3}
   menuButton: {fileID: 21300000, guid: 1b9573bd9d5ef4e12bfa8117f8597ba0, type: 3}
   settingsButton: {fileID: 21300000, guid: b14b5edd1a95443958f137a025c7fce2, type: 3}
-  displayFont: {fileID: 11400000, guid: a23e911ce682141438390e18d8a3e072, type: 2}
-  bodyFont: {fileID: 11400000, guid: d2f7565eb64ef48f7a2c22fa12ba43c5, type: 2}
+  displayFont: {fileID: 11400000, guid: e7ef11b37754e45239009baa6de9cfa1, type: 2}
+  bodyFont: {fileID: 11400000, guid: dcd242ce438f440c3a2fecbc7ecab6da, type: 2}

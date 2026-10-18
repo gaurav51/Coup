@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,10 +19,6 @@ namespace Coup.Game.UI
 
         [System.NonSerialized] private Sprite[] _triangles;
         [System.NonSerialized] private Texture2D[] _triangleTex;
-        [System.NonSerialized] private Sprite _vein;
-        [System.NonSerialized] private Texture2D _veinTex;
-        [System.NonSerialized] private Sprite _bar;
-        [System.NonSerialized] private Texture2D _barTex;
 
         private readonly List<Image> _pool = new();
         private readonly List<Active> _live = new();
@@ -49,8 +46,24 @@ namespace Coup.Game.UI
             public float Hold;       // fraction of the life spent at full brightness
         }
 
-        private BloodStream _blood;
-        public bool HasBloodLine => _blood != null;
+        [Header("Action particle art")]
+        public Sprite daggerParticle;
+        public Sprite assassinationReticle;
+        public Sprite shockwaveParticle;
+        public Sprite smokeParticle;
+        private AssassinationCue _assassination;
+        private bool _coupActive;
+        public bool HasAssassination => _assassination != null;
+        public int LiveParticleCount => _live.Count + (_assassination != null ? 1 : 0);
+        public int PooledParticleCount => _pool.Count;
+
+        private sealed class AssassinationCue
+        {
+            public Vector2 From, To;
+            public Image Reticle;
+            public float Started, ResolveAt = -1f;
+            public bool Hit;
+        }
 
         private readonly List<Banner> _banners = new();
 
@@ -64,20 +77,6 @@ namespace Coup.Game.UI
             public Vector2 To;
             public bool Fly;
             public float Start;
-        }
-
-        private sealed class BloodStream
-        {
-            public Vector2 From;
-            public Vector2 To;
-            public readonly List<Image> Segments = new();
-            public readonly List<float> Twist = new();
-            public readonly List<Image> Rungs = new();
-            public readonly List<Image> Ribbons = new();
-            public Image Core;
-            public Image Halo;
-            public float FadeAt = -1f;
-            public bool HitOnFade;
         }
 
         /// <summary>The overlay cards and sparks are parented to, in this layer's space.</summary>
@@ -105,16 +104,11 @@ namespace Coup.Game.UI
                 if (shader != null) _glow = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
             }
 
-            EnsureBloodArt();
         }
 
         private void OnDestroy()
         {
             if (_glow != null) Destroy(_glow);
-            if (_vein != null) Destroy(_vein);
-            if (_veinTex != null) Destroy(_veinTex);
-            if (_bar != null) Destroy(_bar);
-            if (_barTex != null) Destroy(_barTex);
             if (_triangles != null)
                 for (var i = 0; i < _triangles.Length; i++)
                     if (_triangles[i] != null) Destroy(_triangles[i]);
@@ -214,8 +208,8 @@ namespace Coup.Game.UI
         /// <summary>An expanding ring — reads as a shockwave on a challenge.</summary>
         public void Ring(Vector2 at, Color colour, float size = 560f, float delay = 0f)
         {
-            var img = Take(_art != null ? _art.vfxRing : null, size * 0.42f, glow: true);
-            var tint = Color.Lerp(colour, Color.white, 0.35f);
+            var img = Take(shockwaveParticle != null ? shockwaveParticle : (_art != null ? _art.vfxRing : null), size * 0.42f, glow: true);
+            var tint = Color.Lerp(colour, Color.white, 0.16f);
             tint.a = 0.9f;
             _live.Add(new Active
             {
@@ -225,10 +219,10 @@ namespace Coup.Game.UI
                 To = at,
                 Start = Time.unscaledTime + delay,
                 Duration = 0.62f,
-                StartScale = 0.35f,
+                StartScale = 0.65f,
                 EndScale = size / Mathf.Max(size * 0.42f, 1f),
                 StartColour = tint,
-                Heat = 0.5f,
+                Heat = 0.2f,
                 Hold = 0.12f
             });
         }
@@ -329,15 +323,13 @@ namespace Coup.Game.UI
             var red = new Color(1f, 0.32f, 0.22f, 1f);
             var gold = new Color(1f, 0.82f, 0.38f, 1f);
 
-            Beam(from, to, new Color(1f, 0.34f, 0.16f, 0.7f), 56f, 1.15f, 0.35f, glow: true);
-            Beam(from, to, new Color(1f, 0.95f, 0.75f, 1f), 10f, 1.15f, 0.4f, glow: true);
-            Streak(from, mid, red, 10);
-            Streak(to, mid, gold, 10);
-            Ring(from, red, 360f);
-            Ring(to, gold, 360f);
+            Streak(from, mid, red, 4);
+            Streak(to, mid, gold, 4);
+            Ring(from, red, 150f);
+            Ring(to, gold, 150f);
             CoreFlash(mid, new Color(1f, 0.85f, 0.55f, 1f));
-            Bloom(mid, new Color(1f, 0.45f, 0.2f, 1f), 220f);
-            Burst(mid, new Color(1f, 0.62f, 0.28f, 1f), 12, 480f);
+            Ring(mid, gold, 240f);
+            Burst(mid, new Color(1f, 0.62f, 0.28f, 1f), 8, 260f);
         }
 
         /// <summary>A short volley of sparks from one seat to another.</summary>
@@ -403,121 +395,188 @@ namespace Coup.Game.UI
             });
         }
 
-        /// <summary>
-        /// A soft red line between two seats, with blood triangles spiraling around it.
-        /// It stays up while the assassination is still in question, and
-        /// <see cref="ShatterBloodLine"/> breaks it apart.
-        /// </summary>
-        public void BeginBloodLine(Vector2 from, Vector2 to)
+
+        /// <summary>A readable pending cue; no hit plays until the rules resolve it.</summary>
+        public void BeginAssassination(Vector2 from, Vector2 to)
         {
-            EndBloodLine(false);
-            if (Vector2.Distance(from, to) < 8f) return;
-
-            EnsureBloodArt();
-            var length = Vector2.Distance(from, to);
-            var pairs = Mathf.Clamp(Mathf.RoundToInt(HelixTurns(length) * 7f), 16, 48);
-            var line = new BloodStream { From = from, To = to };
-            var aim = to - from;
-            var angle = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
-
-            line.Core = Vein(aim.magnitude, 16f, angle, (from + to) * 0.5f, new Color(0.86f, 0.05f, 0.08f, 0.9f));
-
-            for (var i = 0; i < pairs * 2; i++)
+            EndAssassination(false);
+            if (_root == null || Vector2.Distance(from, to) < 8f) return;
+            var sprite = assassinationReticle != null ? assassinationReticle : (_art != null ? _art.roundedBorder : null);
+            var cue = Take(sprite, 140f);
+            cue.type = Image.Type.Sliced;
+            cue.preserveAspect = false;
+            cue.rectTransform.sizeDelta = new Vector2(120f, 170f);
+            _assassination = new AssassinationCue
             {
-                var img = Take(RandomTriangle(), Random.Range(15f, 20f));
-                var spin = Random.Range(0f, 360f);
-                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
-                line.Segments.Add(img);
-                line.Twist.Add(spin);
-            }
-
-            for (var i = 0; i < pairs; i++)
-                line.Rungs.Add(Bar());
-            for (var i = 0; i < (pairs - 1) * 2; i++)
-                line.Ribbons.Add(Bar());
-
-            _blood = line;
-            TickBlood(Time.unscaledTime);
+                From = from, To = to, Reticle = cue, Started = Time.unscaledTime
+            };
+            TickAssassination(Time.unscaledTime);
         }
 
-        /// <summary>The Contessa stops the shot: the line falls apart into beads.</summary>
-        public void ShatterBloodLine()
+        public void ReleaseAssassination(bool hit, float delay)
         {
-            if (_blood == null) return;
-            var line = _blood;
-            _blood = null;
+            if (_assassination == null) return;
+            _assassination.Hit = hit;
+            _assassination.ResolveAt = Time.unscaledTime + Mathf.Max(0f, delay);
+        }
 
-            var dir = line.To - line.From;
-            var len = Mathf.Max(dir.magnitude, 1f);
-            var along = dir / len;
-            var normal = new Vector2(-along.y, along.x);
-            BloodSplash(Vector2.Lerp(line.From, line.To, 0.5f), 10, 340f);
-            RetireCore(line, 0.08f);
-            RetireLinks(line, 0.12f);
+        public void DeflectAssassination()
+        {
+            if (_assassination == null) return;
+            var cue = _assassination;
+            EndAssassination(false);
+            StartCoroutine(KnifeStrike(cue.From, cue.To, true));
+        }
 
-            foreach (var img in line.Segments)
+        public void EndAssassination(bool hit)
+        {
+            if (_assassination == null) return;
+            var cue = _assassination;
+            _assassination = null;
+            RetireImage(cue.Reticle, 0.12f);
+            if (hit) StartCoroutine(KnifeStrike(cue.From, cue.To, false));
+        }
+
+        private IEnumerator KnifeStrike(Vector2 from, Vector2 to, bool blocked)
+        {
+            var direction = (to - from).normalized;
+            var angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            if (daggerParticle != null)
             {
-                if (img == null) continue;
-                var rt = (RectTransform)img.transform;
+                var knife = Take(daggerParticle, 150f);
                 _live.Add(new Active
                 {
-                    Image = img,
-                    Rect = rt,
-                    From = rt.anchoredPosition,
-                    Velocity = normal * Random.Range(-360f, 360f) + along * Random.Range(-120f, 120f) +
-                               new Vector2(0f, Random.Range(40f, 220f)),
-                    Gravity = -420f,
-                    Start = Time.unscaledTime,
-                    Duration = Random.Range(0.7f, 0.95f),
-                    StartScale = rt.localScale.x,
-                    EndScale = 0.55f,
-                    StartColour = img.color,
-                    Ballistic = true,
-                    Align = false,
-                    Stretch = 1f,
-                    Hold = 0.35f,
-                    Angle = rt.localEulerAngles.z,
-                    Spin = Random.Range(-80f, 80f)
+                    Image = knife, Rect = knife.rectTransform, From = from, To = to,
+                    Start = Time.unscaledTime, Duration = 0.22f, StartScale = 0.95f, EndScale = 0.95f,
+                    StartColour = Color.white, Angle = angle, Hold = 0.92f
                 });
             }
-        }
-
-        /// <summary>Lets the line finish its beat, then retires it. A hit bursts on the target.</summary>
-        public void ReleaseBloodLine(bool hit, float delay)
-        {
-            if (_blood == null) return;
-            _blood.FadeAt = Time.unscaledTime + Mathf.Max(0f, delay);
-            _blood.HitOnFade = hit;
-        }
-
-        /// <summary>The shot is over. Beads fade where they are; a hit also bursts on the target.</summary>
-        public void EndBloodLine(bool hit)
-        {
-            if (_blood == null) return;
-            var line = _blood;
-            _blood = null;
-            if (hit) BloodSplash(line.To, 14, 460f);
-            RetireCore(line, 0.2f);
-            RetireLinks(line, 0.2f);
-
-            foreach (var img in line.Segments)
+            yield return new WaitForSecondsRealtime(0.22f);
+            if (blocked)
             {
-                if (img == null) continue;
-                var rt = (RectTransform)img.transform;
-                _live.Add(new Active
-                {
-                    Image = img,
-                    Rect = rt,
-                    From = rt.anchoredPosition,
-                    To = rt.anchoredPosition,
-                    Start = Time.unscaledTime,
-                    Duration = 0.28f,
-                    StartScale = rt.localScale.x,
-                    EndScale = 0.85f,
-                    StartColour = img.color,
-                    Angle = rt.localEulerAngles.z
-                });
+                var normal = new Vector2(-direction.y, direction.x);
+                Glyph(daggerParticle, to, to + normal * 90f - direction * 35f,
+                    120f, Color.white, 0.25f, 0f, 1f, 0.6f, angle + 65f, false, 25f);
+                Burst(to, new Color(0.65f, 0.8f, 0.9f), 4, 110f);
             }
+            else
+            {
+                Glyph(_art != null ? _art.vfxSpark : null, to, to, 48f,
+                    new Color(0.9f, 0.82f, 0.7f, 0.8f), 0.12f, 0f, 0.55f, 1f, 0f);
+                Burst(to, new Color(0.75f, 0.5f, 0.3f), 6, 150f);
+                Smoke(to, new Color(0.17f, 0.16f, 0.18f, 0.23f), 90f);
+            }
+        }
+
+        private void TickAssassination(float now)
+        {
+            if (_assassination == null) return;
+            if (_assassination.ResolveAt >= 0f && now >= _assassination.ResolveAt)
+            {
+                EndAssassination(_assassination.Hit);
+                return;
+            }
+            var cue = _assassination;
+            var t = now - cue.Started;
+            cue.Reticle.rectTransform.anchoredPosition = cue.To;
+            cue.Reticle.rectTransform.localScale = Vector3.one * (1f + 0.012f * Mathf.Sin(t * 3f));
+            cue.Reticle.rectTransform.localEulerAngles = Vector3.zero;
+            cue.Reticle.color = new Color(0.75f, 0.22f, 0.24f, 0.38f + 0.08f * Mathf.Sin(t * 3f));
+        }
+
+        /// <summary>One short royal impact: gather, strike, shockwave, falling metal.</summary>
+        public void CoupEffect(Vector2 from, Vector2 to)
+        {
+            if (_root == null || _coupActive) return;
+            StartCoroutine(CoupSequence(from, to));
+        }
+
+        private IEnumerator CoupSequence(Vector2 from, Vector2 to)
+        {
+            _coupActive = true;
+            try
+            {
+                var gold = new Color(1f, 0.72f, 0.24f);
+                var red = new Color(1f, 0.19f, 0.13f);
+                Flash(new Color(0.01f, 0.01f, 0.025f, 0.14f), 0.45f);
+                Glyph(shockwaveParticle, to, to, 260f, new Color(1f, 0.5f, 0.15f, 0.45f),
+                    0.28f, 0f, 1.35f, 0.5f, 0f);
+                for (var i = 0; i < 10; i++)
+                {
+                    var angle = i * Mathf.PI * 2f / 10f;
+                    var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 145f;
+                    Glyph(_art != null ? _art.vfxSpark : null, to + offset, to, 15f, gold,
+                        0.28f, 0f, 1f, 0.3f, 0f);
+                }
+                yield return new WaitForSecondsRealtime(0.28f);
+                Beam(to + Vector2.up * 220f, to, new Color(1f, 0.85f, 0.5f, 0.9f),
+                    12f, 0.23f, 0.1f, true);
+                Glyph(_art != null ? _art.vfxSpark : null, to, to, 82f,
+                    new Color(1f, 0.85f, 0.5f, 0.8f), 0.18f, 0f, 0.5f, 1f, 0f);
+                Ring(to, gold, 420f);
+                Ring(to, red, 560f, 0.08f);
+                Smoke(to, new Color(0.4f, 0.17f, 0.1f, 0.45f), 240f);
+                Burst(to, gold, 20, 390f);
+                for (var i = 0; i < 12; i++)
+                {
+                    var img = Take(RandomTriangle(), Random.Range(10f, 21f));
+                    var angle = Random.Range(0f, Mathf.PI * 2f);
+                    _live.Add(new Active
+                    {
+                        Image = img, Rect = img.rectTransform, From = to,
+                        Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * Random.Range(100f, 320f),
+                        Gravity = -650f, Start = Time.unscaledTime, Duration = Random.Range(0.55f, 0.85f),
+                        StartScale = 1f, EndScale = 0.2f, StartColour = gold, Ballistic = true,
+                        Angle = Random.Range(0f, 360f), Spin = Random.Range(-200f, 200f), Hold = 0.1f
+                    });
+                }
+                yield return new WaitForSecondsRealtime(0.85f);
+            }
+            finally { _coupActive = false; }
+        }
+
+        /// <summary>Two cards trade places without implying a hidden role.</summary>
+        public void ExchangeEffect(Vector2 at)
+        {
+            var amber = new Color(1f, 0.67f, 0.22f);
+            Ring(at, amber, 200f);
+            var back = _art != null ? _art.cardBack : null;
+            Glyph(back, at + new Vector2(-72f, -15f), at + new Vector2(72f, 30f),
+                90f, Color.white, 0.65f, 0f, 0.6f, 0.85f, -14f, false, 80f);
+            Glyph(back, at + new Vector2(72f, 15f), at + new Vector2(-72f, -30f),
+                90f, Color.white, 0.65f, 0.08f, 0.6f, 0.85f, 14f, false, 80f);
+        }
+
+        private void Smoke(Vector2 at, Color tint, float size)
+        {
+            if (smokeParticle == null) return;
+            Glyph(smokeParticle, at, at + new Vector2(20f, 65f), size, tint,
+                0.8f, 0f, 0.65f, 1.25f, Random.Range(-15f, 15f), false);
+        }
+
+        private void Glyph(Sprite sprite, Vector2 from, Vector2 to, float size, Color colour,
+            float duration, float delay, float startScale, float endScale, float angle,
+            bool additive = true, float arc = 0f)
+        {
+            if (sprite == null) sprite = _art != null ? _art.vfxSpark : null;
+            var img = Take(sprite, size, additive);
+            _live.Add(new Active
+            {
+                Image = img, Rect = img.rectTransform, From = from, To = to,
+                Start = Time.unscaledTime + delay, Duration = duration, StartScale = startScale,
+                EndScale = endScale, StartColour = colour, Angle = angle, Arc = arc, Hold = 0.12f
+            });
+        }
+
+        private void OnDisable()
+        {
+            StopAllCoroutines();
+            _coupActive = false;
+            if (_assassination != null) Release(_assassination.Reticle);
+            _assassination = null;
+            foreach (var effect in _live) Release(effect.Image);
+            _live.Clear();
+            for (var i = _banners.Count - 1; i >= 0; i--) RetireBanner(i);
         }
 
         /// <summary>A brief full-screen wash, for eliminations and the win screen.</summary>
@@ -633,7 +692,7 @@ namespace Coup.Game.UI
         private void Update()
         {
             var now = Time.unscaledTime;
-            TickBlood(now);
+            TickAssassination(now);
             TickBanners(now);
             if (_live.Count == 0) return;
 
@@ -845,6 +904,8 @@ namespace Coup.Game.UI
             }
 
             img.gameObject.SetActive(true);
+            img.enabled = true;
+            img.color = Color.clear;
             img.sprite = sprite;
             img.type = Image.Type.Simple;
             img.material = glow && _glow != null ? _glow : null;
@@ -860,14 +921,6 @@ namespace Coup.Game.UI
         {
             if (img == null) return;
             img.gameObject.SetActive(false);
-        }
-
-        private void RetireCore(BloodStream line, float duration)
-        {
-            RetireImage(line.Core, duration);
-            RetireImage(line.Halo, duration);
-            line.Core = null;
-            line.Halo = null;
         }
 
         private void RetireImage(Image img, float duration)
@@ -889,206 +942,9 @@ namespace Coup.Game.UI
             });
         }
 
-        private void TickBlood(float now)
-        {
-            if (_blood == null) return;
-            var line = _blood;
-            if (line.FadeAt >= 0f && now >= line.FadeAt)
-            {
-                EndBloodLine(line.HitOnFade);
-                return;
-            }
-
-            var dir = line.To - line.From;
-            var len = dir.magnitude;
-            if (len < 1f) return;
-
-            var normal = new Vector2(-dir.y, dir.x) / len;
-            var turns = HelixTurns(len);
-            var pairs = Mathf.Max(1, line.Segments.Count / 2);
-            var points = new Vector2[pairs * 2];
-            var depth = new float[pairs * 2];
-
-            for (var i = 0; i < pairs * 2; i++)
-            {
-                var strand = i % 2;
-                var t = (i / 2 + 0.5f) / pairs;
-                var phase = t * turns * Mathf.PI * 2f + now * 2.4f + strand * Mathf.PI;
-                depth[i] = Mathf.Cos(phase);
-                points[i] = HelixPoint(line.From, line.To, dir, normal, len, t, phase);
-            }
-
-            for (var pass = 0; pass < 2; pass++)
-            {
-                var back = pass == 0;
-                for (var k = 1; k < pairs; k++)
-                for (var strand = 0; strand < 2; strand++)
-                {
-                    var a = (k - 1) * 2 + strand;
-                    var b = k * 2 + strand;
-                    if ((depth[a] + depth[b]) * 0.5f < 0f != back) continue;
-                    var slot = (k - 1) * 2 + strand;
-                    if (slot >= line.Ribbons.Count || line.Ribbons[slot] == null) continue;
-                    var front = ((depth[a] + depth[b]) * 0.5f + 1f) * 0.5f;
-                    PlaceBar(line.Ribbons[slot], points[a], points[b], 8f,
-                        Color.Lerp(new Color(0.42f, 0.02f, 0.05f, 0.9f), new Color(0.9f, 0.08f, 0.1f, 1f), front));
-                }
-
-                for (var i = 0; i < pairs * 2; i++)
-                {
-                    if (depth[i] < 0f != back) continue;
-                    if (i >= line.Segments.Count || line.Segments[i] == null) continue;
-                    PlaceHelixDrop(line.Segments[i], points[i], depth[i], i < line.Twist.Count ? line.Twist[i] : 0f);
-                }
-
-                if (back)
-                {
-                    for (var k = 0; k < pairs && k < line.Rungs.Count; k++)
-                    {
-                        if (line.Rungs[k] == null) continue;
-                        var dist = Vector2.Distance(points[k * 2], points[k * 2 + 1]);
-                        var open = Mathf.Clamp01((dist - 12f) / (HelixRadius * 0.7f));
-                        var colour = new Color(0.62f, 0.03f, 0.06f, 0.85f * open);
-                        PlaceBar(line.Rungs[k], points[k * 2], points[k * 2 + 1], 5f, colour);
-                    }
-
-                    if (line.Core != null) line.Core.transform.SetAsLastSibling();
-                }
-            }
-        }
-
-        /// <summary>One triangle on a double helix. The far strand sits behind the line and draws smaller.</summary>
-        private static void PlaceHelixDrop(Image img, Vector2 at, float depth, float spin)
-        {
-            var front = (depth + 1f) * 0.5f;
-            var rt = (RectTransform)img.transform;
-            rt.anchoredPosition = at;
-            rt.localEulerAngles = new Vector3(0f, 0f, spin);
-            rt.localScale = Vector3.one * Mathf.Lerp(0.72f, 1.2f, front);
-            img.color = Color.Lerp(new Color(0.5f, 0.02f, 0.05f, 1f), new Color(0.96f, 0.1f, 0.1f, 1f), front);
-            img.transform.SetAsLastSibling();
-        }
-
-        private static Vector2 HelixPoint(Vector2 from, Vector2 to, Vector2 dir, Vector2 normal, float len, float t, float phase)
-        {
-            var along = dir / len;
-            return Vector2.Lerp(from, to, t)
-                   + normal * Mathf.Sin(phase) * HelixRadius
-                   + along * Mathf.Cos(phase) * (HelixRadius * 0.22f);
-        }
-
-        private static void PlaceBar(Image img, Vector2 a, Vector2 b, float thickness, Color colour)
-        {
-            var delta = b - a;
-            var dist = delta.magnitude;
-            var rt = (RectTransform)img.transform;
-            rt.sizeDelta = new Vector2(Mathf.Max(dist, 1f), thickness);
-            rt.anchoredPosition = (a + b) * 0.5f;
-            rt.localEulerAngles = new Vector3(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            rt.localScale = Vector3.one;
-            img.color = colour;
-            img.enabled = dist > 4f && colour.a > 0.04f;
-            img.transform.SetAsLastSibling();
-        }
-
-        private void RetireLinks(BloodStream line, float duration)
-        {
-            foreach (var img in line.Rungs) RetireImage(img, duration);
-            foreach (var img in line.Ribbons) RetireImage(img, duration);
-            line.Rungs.Clear();
-            line.Ribbons.Clear();
-        }
-
-        private static float HelixTurns(float len) => Mathf.Clamp(len / 95f, 3.5f, 8f);
-
-        private const float HelixRadius = 58f;
-
-        /// <summary>Hard-edged spray. No glow, so each drop keeps its outline.</summary>
-        private void BloodSplash(Vector2 at, int drops, float power)
-        {
-            EnsureBloodArt();
-            for (var i = 0; i < drops; i++)
-            {
-                var img = Take(RandomTriangle(), Random.Range(12f, 20f));
-                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, Random.Range(0f, 360f));
-                var angle = Random.Range(0f, Mathf.PI * 2f);
-                var tint = Color.Lerp(new Color(0.55f, 0.01f, 0.04f, 1f), new Color(0.9f, 0.06f, 0.08f, 1f), Random.value);
-                _live.Add(new Active
-                {
-                    Image = img,
-                    Rect = (RectTransform)img.transform,
-                    From = at,
-                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * power * Random.Range(0.35f, 1f),
-                    Gravity = -1600f,
-                    Start = Time.unscaledTime,
-                    Duration = Random.Range(0.42f, 0.7f),
-                    StartScale = 1f,
-                    EndScale = 0.7f,
-                    StartColour = tint,
-                    Ballistic = true,
-                    Angle = img.rectTransform.localEulerAngles.z,
-                    Spin = Random.Range(-40f, 40f),
-                    Hold = 0.4f
-                });
-            }
-
-            var spatters = Mathf.Clamp(drops / 3, 3, 6);
-            for (var i = 0; i < spatters; i++)
-            {
-                var img = Take(RandomTriangle(), Random.Range(8f, 14f));
-                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, Random.Range(0f, 360f));
-                var angle = Random.Range(0f, Mathf.PI * 2f);
-                _live.Add(new Active
-                {
-                    Image = img,
-                    Rect = (RectTransform)img.transform,
-                    From = at,
-                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * power * Random.Range(0.15f, 0.45f),
-                    Gravity = -900f,
-                    Start = Time.unscaledTime,
-                    Duration = Random.Range(0.35f, 0.55f),
-                    StartScale = 1f,
-                    EndScale = 0.75f,
-                    StartColour = new Color(0.62f, 0.02f, 0.05f, 1f),
-                    Ballistic = true,
-                    Angle = img.rectTransform.localEulerAngles.z,
-                    Hold = 0.5f
-                });
-            }
-        }
-
-        private Image Bar()
-        {
-            var img = Take(_bar, 0f);
-            img.type = Image.Type.Sliced;
-            img.preserveAspect = false;
-            return img;
-        }
-
-        private Image Vein(float length, float thickness, float angle, Vector2 at, Color colour)
-        {
-            var img = Take(_vein, 0f);
-            img.type = Image.Type.Sliced;
-            img.color = colour;
-            img.preserveAspect = false;
-            var rt = (RectTransform)img.transform;
-            rt.sizeDelta = new Vector2(length, thickness);
-            rt.anchoredPosition = at;
-            rt.localEulerAngles = new Vector3(0f, 0f, angle);
-            img.transform.SetAsLastSibling();
-            return img;
-        }
-
-        private void EnsureBloodArt()
-        {
-            if (_triangles == null || _triangles.Length == 0) BuildTriangles();
-            if (_vein == null) _vein = HardVein(out _veinTex);
-            if (_bar == null) _bar = SoftBar(out _barTex);
-        }
-
         private Sprite RandomTriangle()
         {
-            EnsureBloodArt();
+            if (_triangles == null || _triangles.Length == 0) BuildTriangles();
             return _triangles[Random.Range(0, _triangles.Length)];
         }
 
@@ -1118,7 +974,7 @@ namespace Coup.Game.UI
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
                 hideFlags = HideFlags.HideAndDontSave,
-                name = "BloodTriangle"
+                name = "ImperialShard"
             };
 
             var pa = a * (size - 1);
@@ -1151,82 +1007,6 @@ namespace Coup.Game.UI
 
         private static float Edge(Vector2 a, Vector2 b, Vector2 p) =>
             (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
-
-        /// <summary>A soft stroke that pinches to a point at each end. The caps stay fixed while the middle stretches.</summary>
-        private static Sprite HardVein(out Texture2D tex)
-        {
-            const int w = 96;
-            const int h = 64;
-            const float cap = 40f;
-            tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                hideFlags = HideFlags.HideAndDontSave,
-                name = "BloodVein"
-            };
-
-            var px = new Color32[w * h];
-            for (var y = 0; y < h; y++)
-            for (var x = 0; x < w; x++)
-            {
-                var taper = 1f;
-                if (x < cap) taper = x / cap;
-                else if (x > w - 1 - cap) taper = (w - 1 - x) / cap;
-
-                var a = 0f;
-                if (taper > 0.001f)
-                {
-                    var ny = (y - (h - 1) * 0.5f) / ((h - 1) * 0.5f);
-                    var local = ny / taper;
-                    if (local * local <= 1f)
-                        a = Mathf.Exp(-local * local * 2.2f) * Mathf.Clamp01(1.2f - local * local);
-                }
-
-                px[y * w + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
-            }
-
-            tex.SetPixels32(px);
-            tex.Apply(false, false);
-            var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0,
-                SpriteMeshType.FullRect, new Vector4(cap, 0f, cap, 0f));
-            sprite.hideFlags = HideFlags.HideAndDontSave;
-            return sprite;
-        }
-
-        /// <summary>A short soft stroke used for the DNA strands and the rungs between them.</summary>
-        private static Sprite SoftBar(out Texture2D tex)
-        {
-            const int w = 48;
-            const int h = 16;
-            const float cap = 8f;
-            tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                hideFlags = HideFlags.HideAndDontSave,
-                name = "BloodBar"
-            };
-
-            var px = new Color32[w * h];
-            for (var y = 0; y < h; y++)
-            for (var x = 0; x < w; x++)
-            {
-                var ny = (y - (h - 1) * 0.5f) / ((h - 1) * 0.5f);
-                var body = Mathf.Exp(-ny * ny * 2.4f) * Mathf.Clamp01(1.15f - ny * ny);
-                var end = 1f;
-                if (x < cap) end = Mathf.SmoothStep(0f, 1f, x / cap);
-                else if (x > w - 1 - cap) end = Mathf.SmoothStep(0f, 1f, (w - 1 - x) / cap);
-                px[y * w + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(body * end) * 255f));
-            }
-
-            tex.SetPixels32(px);
-            tex.Apply(false, false);
-            var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0,
-                SpriteMeshType.FullRect, new Vector4(cap, 0f, cap, 0f));
-            sprite.hideFlags = HideFlags.HideAndDontSave;
-            return sprite;
-        }
 
         /// <summary>Converts a UI element's position into the effects layer's space.</summary>
         public Vector2 PositionOf(RectTransform target)

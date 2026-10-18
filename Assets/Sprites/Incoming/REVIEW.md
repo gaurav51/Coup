@@ -47,4 +47,26 @@ can introduce a real one, which is exactly what happened to the seat names in
 
 ## Reviewed
 
-*(empty)*
+### 2026-10-18 — imperial reference restyle integrated by Codex
+
+User supplied Futuristic Imperial Strategy Game Table.png and requested that visual direction after rejecting stretched bottom backgrounds. Integrated a generated empty imperial table background at `02_Backgrounds/UI_ImperialTable_v2.png`. Replaced stretched art with native clipped-corner FrameFill/FrameLine sprites using 28px nine-slice borders. Added circle masks and rings around decorative seat portraits, horizontal live player badges, cyan/red/gold action frames, compact sans-serif HUD typography, a shared action console and two live influence markers.
+
+Scene authored and saved through Unity; prefab sources and approved PNGs preserved. Runtime layout/readout changes are in PlayerPanelView, TableView and ActionButtonView. Ability rules remain unchanged: Steal takes 2 coins. Reference art's extra influence diamond and Steal 3 copy were not copied. Latest gameplay screenshot: `UI_Imperial_Final_Play-1.png`. Built-in image prompt and geometry notes: `UI_ImperialTable_v2_PROMPT.md`.
+
+Verified six-player layout at 1080x1920 with zero name truncation and no console errors. Steal target selection activates all five opponents. The editor-side pointer probe reached six controls; Coup's center lies outside the editor Screen.width returned to execute_code, even though the Game view target and canvas are 1080x1920. Do not count that probe as a full device touch test. Selected the existing portrait Game view preset. No Claude handoff.
+
+### 2026-10-18 — player panels and bottom backgrounds completed by Codex
+
+Generated `UI_PlayerPanel_v2.png` with the built-in image tool: compact empty midnight-navy plaque, thin antique-gold art-deco frame, clipped corners, real transparent exterior, no text or icons. Integrated through Unity in all five opponent scene panels, the local You/coins HUD, and a new non-raycasting DockBackground behind all seven actions. Prefab sources were preserved.
+
+Updated PlayerPanelView.LayoutReadout so the name, initial and coin count stay within the opponent frame; names auto-size with an ellipsis fallback. Saved scene through Unity. Verified the six-player game at 1080x1920: all five names render without truncation, card positions remain unchanged, and the console reports no errors. Final screenshot: `UI_Panels_Final_Play.png`. Returned to edit mode. No handoff is pending.
+
+### 2026-10-18 — notification banner integrated by Codex
+
+User explicitly requested Codex handle integration directly. Replaced the sprite on `Canvas/Table/Stage/StatusPlate/Bg` in `Assets/Scenes/Game.unity` through Unity MCP with `UI_NotificationBanner_v2.png`. Changed StatusTitle to warm gold and Status body to cream for contrast. Preserved all RectTransforms and prefab sources. Saved the scene through Unity.
+
+Verified in Play mode at **1080x1920**: the live Your turn heading and instruction fit the banner and remain readable; cards and action controls render correctly. Console error query returned zero entries. Returned Editor to edit mode. Screenshot: `UI_Review_After_Play.png`. Play mode populated dynamic TextMeshPro font atlases, which Unity also marked changed. No source-script edits were required; pre-existing sprite importer changes were left intact.
+
+Artwork is **2185x720 RGBA**, with genuine alpha (657,370 fully transparent pixels) and no baked-in text. Built-in image generation prompt: `UI_NotificationBanner_v2_PROMPT.md`. Imported sprite uses the existing automatic importer settings. This is a UI banner, so card-only size requirements do not apply.
+
+Completed directly; no integration work is pending for Claude. Rules/settings/response dialogs were not part of this banner verification.

@@ -25,13 +25,55 @@ namespace Coup.EditorTools
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.filterMode = FilterMode.Bilinear;
             importer.spritePixelsPerUnit = 100f;
-            importer.maxTextureSize = 2048;
 
             // Full-screen backgrounds sit behind everything and never need alpha.
             var isBackground = assetPath.Contains("/02_Backgrounds/");
             importer.alphaSource = isBackground
                 ? TextureImporterAlphaSource.None
                 : TextureImporterAlphaSource.FromInput;
+
+            var cap = CapFor(assetPath);
+            importer.maxTextureSize = cap;
+
+            // Without an explicit override every platform falls back to the default
+            // block, which ships UI art far larger than it is ever drawn. ASTC 6x6 is
+            // the usual compromise for sprites with alpha.
+            foreach (var platform in MobilePlatforms)
+            {
+                var settings = importer.GetPlatformTextureSettings(platform);
+                settings.overridden = true;
+                settings.maxTextureSize = cap;
+                settings.format = TextureImporterFormat.ASTC_6x6;
+                settings.compressionQuality = 50;
+                importer.SetPlatformTextureSettings(settings);
+            }
+        }
+
+        private static readonly string[] MobilePlatforms = { "Android", "iPhone" };
+
+        /// <summary>
+        /// The import cap for a sprite, chosen from the widest the game ever draws it.
+        /// Measured rather than guessed:
+        ///   cards      TableView.SetDisplayWidth(270) is the largest; the modal caps
+        ///              its slot at 250, so 270 is the ceiling.
+        ///   callouts   PanelCover clamps banner width to 420. The source art is
+        ///              2172 wide, which is over five times what reaches the screen.
+        ///   buttons    the action button icon is 74 square in a 136 wide button.
+        ///   HUD        panel frames and coin piles sit around 300.
+        /// Caps are the next power of two above the display size, which leaves roughly
+        /// double for a high-density screen without paying for the full source.
+        /// </summary>
+        private static int CapFor(string path)
+        {
+            if (path.Contains("/02_Backgrounds/")) return 2048;   // drawn full screen
+            if (path.Contains("/Actions/")) return 512;
+            if (path.Contains("/04_Characters_And_Art_Reference/")) return 512;
+            if (path.Contains("/Cards/")) return 512;
+            if (path.Contains("/Buttons/")) return 256;
+            if (path.Contains("/Coins/")) return 256;
+            if (path.Contains("/HUD/")) return 512;
+            if (path.Contains("/Panels/")) return 512;
+            return 1024;                                          // anything unsorted
         }
 
         [MenuItem("Coup/Reimport Sprite Art")]

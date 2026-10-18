@@ -66,6 +66,8 @@ namespace Coup.Game.UI
         private bool _openingPlayed;
         private TextMeshProUGUI _deckCount;
         private TextMeshProUGUI _discardCount;
+        private CardView _discardTopCard;
+        private Role? _lastDiscardRole;
         private Button _blockButton;
         private Button _challengeButton;
         private Button _passButton;
@@ -588,14 +590,53 @@ namespace Coup.Game.UI
 
         private void RefreshCentre(CoupGame game)
         {
-            _deckCount.text = $"DECK {game.DeckCount}";
-            _discardCount.text = $"OUT {game.Players.Sum(p => p.Revealed.Count)}";
+            _deckCount.text = $"DRAW DECK\n{game.DeckCount}";
+            var removed = game.Players.Sum(p => p.Revealed.Count);
+            _discardCount.text = $"DISCARD\n{removed}";
+            if (_deckRect != null)
+            {
+                _deckRect.GetComponent<Image>().enabled = game.DeckCount > 0;
+                var slot = _deckRect.parent.Find("DrawDeckSlot");
+                if (slot != null) slot.gameObject.SetActive(game.DeckCount == 0);
+            }
+            if (_discardRect == null) return;
+            _discardRect.GetComponent<Image>().enabled = removed > 0;
+            var discardSlot = _discardRect.parent.Find("DiscardSlot");
+            if (discardSlot != null) discardSlot.gameObject.SetActive(removed == 0);
+            if (removed == 0)
+            {
+                if (_discardTopCard != null) _discardTopCard.gameObject.SetActive(false);
+                return;
+            }
+            if (_discardTopCard == null && cardPrefab != null)
+            {
+                _discardTopCard = Instantiate(cardPrefab, _discardRect);
+                _discardTopCard.Bind(art);
+                _discardTopCard.SetInteractable(false);
+                _discardTopCard.SetDisplayWidth(180f);
+                _discardTopCard.root.anchoredPosition = new Vector2(0f, 12f);
+            }
+            if (_discardTopCard != null)
+            {
+                _discardTopCard.gameObject.SetActive(true);
+                _discardTopCard.ShowRole(_lastDiscardRole ?? game.Players.SelectMany(p => p.Revealed).Last());
+            }
         }
 
         private void RefreshHud(CoupGame game)
         {
             var me = game.Players[match.humanSeat];
             _hudName.text = me.Name;
+            // The local HUD shows the actual remaining influence, never decoration.
+            for (var i = 0; i < Rules.StartingInfluence; i++)
+            {
+                var marker = _hudRect != null ? _hudRect.Find("Influence" + i) : null;
+                var image = marker != null ? marker.GetComponent<Image>() : null;
+                if (image != null)
+                    image.color = i < me.InfluenceCount
+                        ? new Color(0.12f, 0.72f, 1f)
+                        : new Color(0.12f, 0.22f, 0.30f);
+            }
 
             var coins = $"<sprite name=\"coin\" tint=0> {me.Coins}";
             if (_hudCoins.text != coins)
@@ -1139,17 +1180,19 @@ namespace Coup.Game.UI
         {
             if (_logText == null) return;
             _logText.enableAutoSizing = false;
-            _logText.fontSize = 38f;
+            _logText.fontSize = 24f;
             _logText.alignment = TextAlignmentOptions.MidlineLeft;
             var rt = _logText.rectTransform;
-            rt.sizeDelta = new Vector2(640f, 136f);
-            rt.anchoredPosition = new Vector2(-160f, 0f);
+            rt.sizeDelta = new Vector2(640f, 72f);
+            rt.anchoredPosition = new Vector2(-150f, -15f);
         }
 
         // -------------------------------------------------------------------- log
 
         private void OnEvent(GameEvent e)
         {
+            if (e.Kind == GameEventKind.GameStarted) _lastDiscardRole = null;
+            else if (e.Kind == GameEventKind.InfluenceLost && e.Role.HasValue) _lastDiscardRole = e.Role;
             TrackClaims(e);
             PlayBeat(e);
 
@@ -1212,9 +1255,8 @@ namespace Coup.Game.UI
             if (_vfx == null) return;
             var at = SeatPosition(seat);
             var colour = Signal(Role.Duke);
-            _vfx.Impact(at, colour);
-            _vfx.Rise(at, colour);
-            _vfx.Flash(new Color(colour.r, colour.g, colour.b, 0.14f), 0.28f);
+            _vfx.Ring(at, colour, 210f);
+            _vfx.Rise(at, colour, 10);
             HitSeat(seat);
         }
 
@@ -1223,8 +1265,8 @@ namespace Coup.Game.UI
             if (_vfx == null) return;
             var colour = Signal(Role.Captain);
             var from = SeatPosition(actor);
-            _vfx.Impact(from, colour);
-            if (target >= 0) _vfx.Streak(from, SeatPosition(target), colour, 10);
+            _vfx.Ring(from, colour, 170f);
+            if (target >= 0) _vfx.Streak(SeatPosition(target), from, colour, 7);
             HitSeat(actor);
         }
 
@@ -1233,9 +1275,7 @@ namespace Coup.Game.UI
             if (_vfx == null) return;
             var at = SeatPosition(seat);
             var colour = Signal(Role.Ambassador);
-            _vfx.Impact(at, colour);
-            _vfx.Streak(at + new Vector2(-80f, 0f), at + new Vector2(80f, 28f), colour, 6);
-            _vfx.Streak(at + new Vector2(80f, 0f), at + new Vector2(-80f, 28f), colour, 6);
+            _vfx.ExchangeEffect(at);
             HitSeat(seat);
         }
 
@@ -1272,6 +1312,16 @@ namespace Coup.Game.UI
             if (!e.Action.HasValue || _vfx == null) return;
             switch (e.Action.Value)
             {
+                case ActionKind.Income:
+                    _vfx.Ring(SeatPosition(e.PlayerIndex), new Color(1f, 0.78f, 0.3f), 125f);
+                    break;
+                case ActionKind.ForeignAid:
+                    _vfx.Ring(SeatPosition(e.PlayerIndex), new Color(0.3f, 0.75f, 1f), 170f);
+                    break;
+                case ActionKind.Coup:
+                    _vfx.CoupEffect(SeatPosition(e.PlayerIndex), CardAnchor(e.TargetIndex));
+                    CoupTween.DelayedCall(0.28f, () => { if (this != null) HitSeat(e.TargetIndex); });
+                    break;
                 case ActionKind.Tax:
                     DukeFeel(e.PlayerIndex);
                     break;
@@ -1282,7 +1332,7 @@ namespace Coup.Game.UI
                     AmbassadorFeel(e.PlayerIndex);
                     break;
                 case ActionKind.Assassinate:
-                    _vfx.BeginBloodLine(SeatPosition(e.PlayerIndex), SeatPosition(e.TargetIndex));
+                    _vfx.BeginAssassination(SeatPosition(e.PlayerIndex), CardAnchor(e.TargetIndex));
                     break;
             }
         }
@@ -1304,7 +1354,7 @@ namespace Coup.Game.UI
                         _vfx.Streak(SeatPosition(e.PlayerIndex), SeatPosition(e.TargetIndex), Signal(Role.Ambassador), 8);
                     break;
                 case Role.Contessa:
-                    _vfx.ShatterBloodLine();
+                    _vfx.DeflectAssassination();
                     HitSeat(e.PlayerIndex);
                     break;
             }
@@ -1314,13 +1364,13 @@ namespace Coup.Game.UI
         /// The assassination landed. If the Contessa already broke the line and the
         /// block was a bluff, the shot draws itself again and then strikes.
         /// </summary>
-        private void ResolveBloodLine(GameEvent e, bool hit)
+        private void ResolveAssassination(GameEvent e, bool hit)
         {
             if (_vfx == null) return;
-            var redraw = !_vfx.HasBloodLine;
+            var redraw = !_vfx.HasAssassination;
             if (redraw)
-                _vfx.BeginBloodLine(SeatPosition(e.PlayerIndex), SeatPosition(e.TargetIndex));
-            _vfx.ReleaseBloodLine(hit, redraw ? 0.6f : 0.2f);
+                _vfx.BeginAssassination(SeatPosition(e.PlayerIndex), CardAnchor(e.TargetIndex));
+            _vfx.ReleaseAssassination(hit, redraw ? 0.6f : 0.2f);
         }
 
         /// <summary>
@@ -1337,18 +1387,10 @@ namespace Coup.Game.UI
             var claimant = SeatPosition(e.TargetIndex);
             FlyChallenge(e);
             _vfx.Clash(challenger, claimant);
-            _vfx.Flash(new Color(0.55f, 0.08f, 0.1f, 0.18f), 0.28f);
             HitSeat(e.PlayerIndex);
             HitSeat(e.TargetIndex);
 
-            var red = new Color(0.95f, 0.28f, 0.22f, 1f);
-            var gold = new Color(1f, 0.78f, 0.32f, 1f);
-            CoupTween.DelayedCall(0.48f, () =>
-            {
-                if (_vfx == null) return;
-                _vfx.Streak(challenger, claimant, red, 8);
-                _vfx.Streak(claimant, challenger, gold, 8);
-            });
+            // Keep the challenge local; the Coup owns the heavier cinematic beat.
         }
 
         /// <summary>The Challenge title leaves the challenger and lands on the player they called.</summary>
@@ -1491,11 +1533,11 @@ namespace Coup.Game.UI
 
                 case GameEventKind.ActionResolved:
                     if (e.Action == ActionKind.Assassinate)
-                        ResolveBloodLine(e, hit: true);
+                        ResolveAssassination(e, hit: true);
                     break;
 
                 case GameEventKind.ActionFailed:
-                    if (_vfx != null) _vfx.ReleaseBloodLine(false, 0.05f);
+                    if (_vfx != null) _vfx.ReleaseAssassination(false, 0.05f);
                     break;
 
                 case GameEventKind.ExchangeCompleted:

@@ -23,6 +23,7 @@ namespace Coup.Game.UI
         public TextMeshProUGUI label;
         public TextMeshProUGUI cost;
         public Image lockIcon;
+        public Color accentColor = new Color(0.12f, 0.72f, 1f);
 
         public event Action<ActionKind> Clicked;
         public event Action<ActionKind> HeldForInfo;
@@ -62,13 +63,10 @@ namespace Coup.Game.UI
 
             if (label != null)
             {
-                label.text = entry?.label ?? kind.ToString();
-                // "Assassinate" is wider than the button at the authored 20pt, so it
-                // truncated mid-word. The longest names shrink instead; short ones are
-                // unchanged because the maximum is the size the prefab already used.
+                label.text = (entry?.label ?? kind.ToString()).ToUpperInvariant();
                 label.enableAutoSizing = true;
-                label.fontSizeMin = 13f;
-                label.fontSizeMax = 20f;
+                label.fontSizeMin = 17f;
+                label.fontSizeMax = 24f;
             }
 
             if (cost != null) cost.text = entry?.subtitle ?? "";
@@ -80,8 +78,8 @@ namespace Coup.Game.UI
             if (cost == null) return;
             cost.text = effect ?? "";
             cost.enableAutoSizing = true;
-            cost.fontSizeMin = 12f;
-            cost.fontSizeMax = 16f;
+            cost.fontSizeMin = 15f;
+            cost.fontSizeMax = 19f;
         }
 
         /// <summary>Greys the button and shows a lock when the action is not legal now.</summary>
@@ -90,7 +88,7 @@ namespace Coup.Game.UI
             if (Available == value) return;
             Available = value;
 
-            if (group != null) group.alpha = value ? 1f : 0.35f;
+            if (group != null) group.alpha = value ? 1f : 0.55f;
             if (lockIcon != null) lockIcon.gameObject.SetActive(!value);
             ApplyFrame();
         }
@@ -108,7 +106,7 @@ namespace Coup.Game.UI
             if (border == null) return;
             border.color = _chosen
                 ? new Color(1f, 0.93f, 0.55f, 1f)
-                : Available ? UIFactory.Gold : new Color(0.4f, 0.4f, 0.45f, 0.7f);
+                : Available ? accentColor : new Color(accentColor.r * 0.5f, accentColor.g * 0.5f, accentColor.b * 0.5f, 0.7f);
         }
 
         private void Update()

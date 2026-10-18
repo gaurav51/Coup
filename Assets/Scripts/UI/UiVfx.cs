@@ -54,13 +54,14 @@ namespace Coup.Game.UI
         private AssassinationCue _assassination;
         private bool _coupActive;
         public bool HasAssassination => _assassination != null;
-        public int LiveParticleCount => _live.Count + (_assassination != null ? 1 : 0);
+        public int LiveParticleCount => _live.Count + (_assassination != null ? 2 : 0);
         public int PooledParticleCount => _pool.Count;
 
         private sealed class AssassinationCue
         {
             public Vector2 From, To;
             public Image Reticle;
+            public Image Knife;
             public float Started, ResolveAt = -1f;
             public bool Hit;
         }
@@ -406,9 +407,10 @@ namespace Coup.Game.UI
             cue.type = Image.Type.Sliced;
             cue.preserveAspect = false;
             cue.rectTransform.sizeDelta = new Vector2(120f, 170f);
+            var poisedKnife = daggerParticle != null ? Take(daggerParticle, 200f) : null;
             _assassination = new AssassinationCue
             {
-                From = from, To = to, Reticle = cue, Started = Time.unscaledTime
+                From = from, To = to, Reticle = cue, Knife = poisedKnife, Started = Time.unscaledTime
             };
             TickAssassination(Time.unscaledTime);
         }
@@ -434,6 +436,7 @@ namespace Coup.Game.UI
             var cue = _assassination;
             _assassination = null;
             RetireImage(cue.Reticle, 0.12f);
+            RetireImage(cue.Knife, 0.08f);
             if (hit) StartCoroutine(KnifeStrike(cue.From, cue.To, false));
         }
 
@@ -441,17 +444,18 @@ namespace Coup.Game.UI
         {
             var direction = (to - from).normalized;
             var angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            from += direction * Mathf.Min(86f, Vector2.Distance(from, to) * 0.2f);
             if (daggerParticle != null)
             {
-                var knife = Take(daggerParticle, 150f);
+                var knife = Take(daggerParticle, 200f);
                 _live.Add(new Active
                 {
                     Image = knife, Rect = knife.rectTransform, From = from, To = to,
-                    Start = Time.unscaledTime, Duration = 0.22f, StartScale = 0.95f, EndScale = 0.95f,
+                    Start = Time.unscaledTime, Duration = 0.42f, StartScale = 0.95f, EndScale = 0.95f,
                     StartColour = Color.white, Angle = angle, Hold = 0.92f
                 });
             }
-            yield return new WaitForSecondsRealtime(0.22f);
+            yield return new WaitForSecondsRealtime(0.42f);
             if (blocked)
             {
                 var normal = new Vector2(-direction.y, direction.x);
@@ -481,7 +485,16 @@ namespace Coup.Game.UI
             cue.Reticle.rectTransform.anchoredPosition = cue.To;
             cue.Reticle.rectTransform.localScale = Vector3.one * (1f + 0.012f * Mathf.Sin(t * 3f));
             cue.Reticle.rectTransform.localEulerAngles = Vector3.zero;
-            cue.Reticle.color = new Color(0.75f, 0.22f, 0.24f, 0.38f + 0.08f * Mathf.Sin(t * 3f));
+            cue.Reticle.color = new Color(0.9f, 0.25f, 0.24f, 0.65f + 0.12f * Mathf.Sin(t * 3f));
+            if (cue.Knife != null)
+            {
+                var direction = (cue.To - cue.From).normalized;
+                cue.Knife.rectTransform.anchoredPosition = cue.From + direction * 86f
+                    + new Vector2(0f, Mathf.Sin(t * 2.5f) * 5f);
+                cue.Knife.rectTransform.localEulerAngles = new Vector3(0f, 0f,
+                    Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
+                cue.Knife.color = new Color(1f, 1f, 1f, 0.95f);
+            }
         }
 
         /// <summary>One short royal impact: gather, strike, shockwave, falling metal.</summary>
@@ -572,7 +585,11 @@ namespace Coup.Game.UI
         {
             StopAllCoroutines();
             _coupActive = false;
-            if (_assassination != null) Release(_assassination.Reticle);
+            if (_assassination != null)
+            {
+                Release(_assassination.Reticle);
+                Release(_assassination.Knife);
+            }
             _assassination = null;
             foreach (var effect in _live) Release(effect.Image);
             _live.Clear();

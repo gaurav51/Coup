@@ -12,34 +12,36 @@ or watermark got baked in (automatic reject).
 
 ## Pending
 
-| File | Status |
-|---|---|
-| `Card_Captain_v2.png` | **awaiting** — not yet on disk |
+**Nothing. No card art is needed right now.** The request that used to sit here
+was based on a mistake, withdrawn 2026-10-18. The reasoning is kept below
+because it is worth not repeating.
 
-Nothing has been dropped yet. The Captain is the pilot: once one file lands and
-passes, the remaining four go in one batch.
+### Withdrawn: "the baked-in card text is unreadable"
 
-### Why this is now blocking, not cosmetic
+The claim was that cards in hand showed art with captions baked into the PNG,
+far too small to read, and that only text-free art could fix it. Both halves
+were wrong.
 
-Playtest capture: `Assets/Screenshots/ui_review_before.png` (6 players, your
-hand showing Ambassador and Duke).
+**The game never renders `Card_*.png`.** `CardView` composites
+`Assets/Art/Generated/Portrait_<Role>.png` (a cut-out) over its
+`Backdrop_<Role>.png`, then draws name and ability with TextMeshPro from the
+`CoupArt` entry. All five portraits exist. The composites in
+`04_Characters_And_Art_Reference/` are reference material, not runtime assets,
+so the captions baked into them never reach the screen at all.
 
-The two cards in hand render at roughly 100x150 px on a 1080x1920 canvas. The
-name and ability text baked into the art is unreadable at that size — it is
-below about 6pt on screen. A player cannot read their own hand, which is the
-one thing they must be able to read.
+**The text was never too small.** The measurement came from a 506px-wide
+preview of a 1080px-wide canvas, understating every size by about 2.1x.
+Cropped from the same capture at native resolution, "CAPTAIN / Steal 2 coins. /
+Blocks stealing." is crisp and comfortably legible. `CoupPrefabBuilder`
+auto-sizes the name 9-34pt and the ability 7-21pt, and at the hand's display
+width it lands near the top of those ranges rather than the floor.
 
-This cannot be fixed on the Unity side. The text is pixels in the PNG, so it
-can't be restyled, resized or localised, and it doesn't scale with the card.
-Text-free art is the fix: TMP then draws name and ability at whatever size the
-card is actually displayed, and `CardView` already has the fields for it.
-
-Priority order if you're generating in batches — hand cards are visible every
-turn, so they matter most:
-
-1. `Card_Duke_v2.png`, `Card_Ambassador_v2.png` — in hand in the capture
-2. `Card_Captain_v2.png` — pilot, prompt already written
-3. `Card_Assassin_v2.png`, `Card_Contessa_v2.png`
+**Lesson for anything judged from a screenshot here:** check the file's real
+dimensions first. `manage_camera` writes the PNG at full resolution and returns
+a *downscaled* inline preview. Reading the preview as though it were the real
+thing invents problems that aren't there — and a "fix" for an imaginary problem
+can introduce a real one, which is exactly what happened to the seat names in
+`8aa3c42`.
 
 ---
 

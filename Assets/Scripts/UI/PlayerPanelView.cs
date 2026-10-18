@@ -84,32 +84,13 @@ namespace Coup.Game.UI
         }
 
         /// <summary>
-        /// How far to slide the name sideways to keep it on screen, in panel-local
-        /// units, and zero for any seat that already fits.
-        ///
-        /// Because the readout is sized in screen pixels, the name box stays 280 wide
-        /// however small the chair gets — so an outermost seat centres a 280px name
-        /// past the edge of a 1080 canvas and clips it. Game.unity places the panels
-        /// by hand, so the name moves rather than the seat.
-        /// </summary>
-        private float NameNudge()
-        {
-            const float halfName = 140f;   // the 280px box, either side of centre
-
-            var parent = (root != null ? root.parent : transform.parent) as RectTransform;
-            if (parent == null || root == null) return 0f;
-
-            var limit = parent.rect.width * 0.5f - halfName;
-            if (limit <= 0f) return 0f;
-
-            var seatX = root.anchoredPosition.x;
-            var seat = Mathf.Max(_seatScale.x, 0.4f);
-            return (Mathf.Clamp(seatX, -limit, limit) - seatX) / seat;
-        }
-
-        /// <summary>
         /// Name, coins and the last claim, in screen pixels. The seat's scale is
         /// divided out so the type stays the same size on every chair.
+        ///
+        /// The 280px name box does overhang the canvas on the outermost seats, but
+        /// the name is centred in it and never fills it, so nothing is actually
+        /// clipped. Sliding the box inward to "fix" that only pushes the name into
+        /// the cards beside it.
         /// </summary>
         private void LayoutReadout()
         {
@@ -133,7 +114,7 @@ namespace Coup.Game.UI
             }
 
             Place(avatarInitial, 56f, new Vector2(0f, -62f), new Vector2(130f, 72f));
-            Place(nameText, Local(46f), new Vector2(NameNudge(), nameCenter), new Vector2(Local(280f), nameH));
+            Place(nameText, Local(46f), new Vector2(0f, nameCenter), new Vector2(Local(280f), nameH));
             Place(coinText, 36f / seat, new Vector2(0f, -156f), new Vector2(140f / seat, 56f / seat));
             if (coinText != null) coinText.color = new Color(0.95f, 0.82f, 0.35f, coinText.color.a);
 

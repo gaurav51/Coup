@@ -94,9 +94,27 @@ namespace Coup.Game
                 if (!_match.autoStartOnline)
                 {
                     Show($"Table {code}\nPress Start when everyone has joined.");
+                    AddButton("Start", "START MATCH", new Vector2(-190f, -140f), StartHostedMatch);
+                    AddButton("Offline", "PLAY HERE", new Vector2(190f, -140f), () =>
+                    {
+                        if (_banner != null) _banner.SetActive(false);
+                        _match.PlayOffline();
+                    });
                     return;
                 }
 
+                await ReadyAndStart();
+            }
+            catch (Exception ex)
+            {
+                Fail(ex.Message);
+            }
+        }
+
+        private async void StartHostedMatch()
+        {
+            try
+            {
                 await ReadyAndStart();
             }
             catch (Exception ex)
@@ -176,7 +194,7 @@ namespace Coup.Game
         {
             Debug.LogWarning($"[Coup] {message}");
             Show(message + "\n\nIn the server folder, run npm start.\nOr play this match on this device.");
-            AddButton("PLAY HERE", () =>
+            AddButton("Offline", "PLAY HERE", Vector2.zero + new Vector2(0f, -140f), () =>
             {
                 if (_banner != null) _banner.SetActive(false);
                 _match.PlayOffline();
@@ -208,12 +226,12 @@ namespace Coup.Game
             else label.text = message;
         }
 
-        private void AddButton(string caption, Action click)
+        private void AddButton(string name, string caption, Vector2 position, Action click)
         {
-            if (_banner == null || _banner.transform.Find("Offline") != null) return;
-            var button = UIFactory.Button("Offline", _banner.transform, null, new Vector2(360, 90), new Vector2(0, -140));
+            if (_banner == null || _banner.transform.Find(name) != null) return;
+            var button = UIFactory.Button(name, _banner.transform, null, new Vector2(330, 90), position);
             button.GetComponent<Image>().color = UIFactory.Gold;
-            var text = UIFactory.Text("Label", button.transform, caption, 28, new Vector2(320, 70), Vector2.zero);
+            var text = UIFactory.Text("Label", button.transform, caption, 28, new Vector2(300, 70), Vector2.zero);
             text.color = new Color(0.12f, 0.09f, 0.05f);
             text.fontStyle = TMPro.FontStyles.Bold;
             button.onClick.AddListener(() => click());

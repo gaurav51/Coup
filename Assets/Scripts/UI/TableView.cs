@@ -72,6 +72,7 @@ namespace Coup.Game.UI
         private Button _challengeButton;
         private Button _passButton;
         private ModalPanel _modal;
+        private GameOverPanel _gameOver;
         private UiVfx _vfx;
         private CardView _revealCard;
 
@@ -185,6 +186,11 @@ namespace Coup.Game.UI
             if (!_modal.TryBind(art, cardPrefab))
                 _modal.Build(_root, art, cardPrefab);
 
+            _gameOver = GetComponent<GameOverPanel>();
+            if (_gameOver == null) _gameOver = gameObject.AddComponent<GameOverPanel>();
+            if (!_gameOver.TryBind(art))
+                _gameOver.Build(_root, art);
+
             _vfx = GetComponent<UiVfx>();
             if (_vfx == null) _vfx = gameObject.AddComponent<UiVfx>();
             _vfx.Build(_root, art);
@@ -234,6 +240,9 @@ namespace Coup.Game.UI
 
             _modal = gameObject.AddComponent<ModalPanel>();
             _modal.Build(_root, art, cardPrefab);
+
+            _gameOver = gameObject.AddComponent<GameOverPanel>();
+            _gameOver.Build(_root, art);
 
             // Built last so the effects layer composites above every other element.
             _vfx = gameObject.AddComponent<UiVfx>();
@@ -1575,11 +1584,71 @@ namespace Coup.Game.UI
                 }
 
                 case GameEventKind.GameOver:
-                    _vfx.Flash(e.PlayerIndex == match.humanSeat
-                        ? new Color(1f, 0.88f, 0.5f, 0.45f)
-                        : new Color(0.1f, 0.05f, 0.08f, 0.55f), 0.7f);
+                    _vfx.Victory(SeatPosition(e.PlayerIndex));
+                    CoupTween.DelayedCall(1.55f, () => ShowGameOver(e.PlayerIndex));
                     break;
             }
+        }
+
+        private void ShowGameOver(int winnerSeat)
+        {
+            if (this == null || _gameOver == null || match?.Game == null) return;
+            var winner = match.Game.Players.FirstOrDefault(player => player.Index == winnerSeat);
+            if (winner == null) return;
+
+            _gameOver.Show(
+                winnerSeat == match.humanSeat,
+                winner.Name,
+                WinnerPortrait(winnerSeat),
+                match.RetryMatch,
+                match.ReturnToLobby,
+                _vfx);
+        }
+
+        private Texture WinnerPortrait(int seat)
+        {
+            if (art != null && match?.Game != null)
+            {
+                var player = match.Game.Players.FirstOrDefault(entry => entry.Index == seat);
+                Role? role = null;
+                if (player != null && player.Influence.Count > 0) role = player.Influence[0];
+                else if (player != null && player.Revealed.Count > 0) role = player.Revealed[player.Revealed.Count - 1];
+                if (role.HasValue)
+                {
+                    var cutout = RoleCutout(role.Value);
+                    if (cutout != null) return cutout;
+                    var sprite = art.Portrait(role.Value);
+                    if (sprite != null) return sprite.texture;
+                }
+            }
+            return ProfileTexture(seat);
+        }
+
+        private Texture RoleCutout(Role role)
+        {
+            var named = "Portrait_" + role;
+            var sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+            for (var i = 0; i < sprites.Length; i++)
+            {
+                var sprite = sprites[i];
+                if (sprite == null) continue;
+                if (sprite.name.StartsWith(named) || (sprite.texture != null && sprite.texture.name.StartsWith(named)))
+                    return sprite.texture;
+            }
+            return null;
+        }
+
+        private Texture ProfileTexture(int seat)
+        {
+            Transform owner = seat == match.humanSeat
+                ? _hudRect
+                : _panels.FirstOrDefault(panel => panel.Seat == seat)?.transform;
+            if (owner == null) return null;
+
+            var direct = owner.Find("PortraitMask/Face")?.GetComponent<RawImage>();
+            if (direct != null && direct.texture != null) return direct.texture;
+            return owner.GetComponentsInChildren<RawImage>(true)
+                .FirstOrDefault(image => image.gameObject.name == "Face")?.texture;
         }
 
         /// <summary>

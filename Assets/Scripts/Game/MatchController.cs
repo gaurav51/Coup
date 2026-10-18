@@ -104,6 +104,44 @@ namespace Coup.Game
             StartMatch();
         }
 
+        /// <summary>Deals another match in the current mode.</summary>
+        public void RetryMatch()
+        {
+            ResetPresentation();
+            if (playOnline)
+            {
+                _online?.Dispose();
+                _online = null;
+                Game = null;
+                joinCode = "";
+                autoStartOnline = true;
+                BeginOnline();
+                StateChanged?.Invoke();
+                return;
+            }
+
+            StartMatch();
+        }
+
+        /// <summary>Leaves the finished table and opens a fresh online lobby.</summary>
+        public void ReturnToLobby()
+        {
+            ResetPresentation();
+            if (_pump != null)
+            {
+                StopCoroutine(_pump);
+                _pump = null;
+            }
+            _online?.Dispose();
+            _online = null;
+            Game = null;
+            playOnline = true;
+            joinCode = "";
+            autoStartOnline = false;
+            StateChanged?.Invoke();
+            BeginOnline();
+        }
+
         public void ShowServerState(JsonValue state, List<JsonValue> openingLog)
         {
             if (state == null) return;
@@ -139,6 +177,7 @@ namespace Coup.Game
 
         public void StartMatch()
         {
+            ResetPresentation();
             if (_pump != null) StopCoroutine(_pump);
 
             var actualSeed = seed != 0 ? seed : UnityEngine.Random.Range(1, int.MaxValue);
@@ -159,6 +198,15 @@ namespace Coup.Game
             Time.timeScale = 1f;
 
             _pump = StartCoroutine(Pump());
+        }
+
+        private void ResetPresentation()
+        {
+            if (_playback != null) StopCoroutine(_playback);
+            _playback = null;
+            _beats.Clear();
+            Presenting = false;
+            _lastServerEvent = 0;
         }
 
         private List<string> BuildNames()

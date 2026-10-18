@@ -10,33 +10,49 @@ or watermark got baked in (automatic reject).
 
 ---
 
+## 2026-10-19 — Lobby concept
+
+Portrait waiting-room mockup for the online table, in the imperial chamber
+language (navy marble, antique gold, night city, crimson/purple/amber banners).
+Copy is baked in on purpose so the layout can be judged: COUP / THE COURT,
+table code VELA, seats ARIA (host) and MARCUS (ready), two open seats, START
+MATCH and PLAY HERE. Empty seats are the courtier fill the host already starts
+with.
+
+`Assets/Sprites/Incoming/UI_Lobby_Concept_v1.jpg` (720×1280). Concept only.
+Do not wire it as a sprite — the letters have to become TextMeshPro, same rule
+as the game-over plate.
+
+## 2026-10-19 — Unused drops removed
+
+Deleted Incoming review captures and rejected plates that nothing in the scene,
+prefabs, or materials referenced, plus the duplicate confetti copies. Runtime
+art stays in `Resources/GameOver/` and the sprites the scene still uses.
+
+## 2026-10-19 — Win confetti is a Particle System
+
+The foil pieces are no longer moved by `UiVfx`. `Assets/Resources/GameOver/WinConfetti.prefab`
+is a Unity Particle System (ribbon, diamond, flake, spark) and the win panel
+only calls Play. They render through a Confetti overlay camera so they sit on
+top of the screen-space camera HUD. Checked in Play mode: the four cut-outs
+fall and tumble across YOU WON.
+
+## 2026-10-18 — Win confetti pieces
+
+Generated four cut-out particles for the YOU WON rain and wired them into
+`UiVfx.Confetti`: a gold foil ribbon, a teal-and-gold diamond, a gold flake,
+and a four-point spark. Black was keyed out so they composite on the panel.
+They drift down across the laurel and title with a slow spin, instead of the
+old coin-and-triangle burst. Checked in Play mode: 28 live pieces, the ribbon,
+diamond, flake and spark all drawing over YOU WON.
+
+`Assets/Resources/GameOver/ConfettiRibbon.png` (226×433),
+`ConfettiDiamond.png` (315×369), `ConfettiGold.png` (519×366),
+`ConfettiSpark.png` (431×428). Copies in `Assets/Sprites/Incoming/`.
+
 ## Pending
 
-### 2026-10-18 — replace yellow game-over wash
-
-The user wants the solid yellow screen effect at game over replaced with an
-actual victory VFX. They approved the generated gold-laurel/cyan-star crest at:
-
-`/Users/gaurav-bs/.cursor/projects/Users-gaurav-bs-Coup/assets/VFX_VictoryBurst_v2.jpg`
-
-Please import that image as the centrepiece using an additive material so its
-pure-black background disappears, then combine it with the existing transparent
-imperial ring/spark VFX:
-
-- trigger this for every `GameOver` event, regardless of whether the winner is
-  the local player or an opponent; use `GameEvent.PlayerIndex` as the winning
-  seat;
-- centre the effect on the winning player/profile (screen centre is an
-  acceptable fallback);
-- pop the crest from 0.35 scale to 1.1, settle at 1.0, then fade;
-- expand two thin gold rings at slightly different speeds;
-- punch a cyan-white light at the crest's centre and emit a restrained radial
-  burst of gold sparks;
-- add a brief upward sparkle trail from the winning profile to the crest;
-- keep the table visible throughout — no opaque overlay or full-screen colour
-  wash;
-- finish in roughly 1.2–1.5 seconds and do not block the result controls after
-  the animation completes. The image and procedural VFX should play together.
+Nothing.
 
 The withdrawn request below is retained because its reasoning is worth not
 repeating.
@@ -71,6 +87,78 @@ can introduce a real one, which is exactly what happened to the seat names in
 ---
 
 ## Reviewed
+
+### 2026-10-18 — Game Over matched to the YOU WON concept
+
+Generated pieces from `UI_GameOver_YouWon_Concept_v1` and loaded them with `Resources.Load` so a missing scene reference cannot fall back to the plain card.
+
+- `Resources/GameOver/WinBg.jpg` — sunburst, marble, gold frame, empty interior
+- `Resources/GameOver/LoseBg.jpg` — quieter bronze frame
+- `Resources/GameOver/Laurel.png` — concept wreath, real alpha
+- `Resources/GameOver/BtnBlue.png` / `BtnGold.png` — concept button shells, black cut out
+
+Portrait is a circular mask. Copy is TMP. Verified in Play: `UI_GO_ConceptMatch-1.png`.
+
+### 2026-10-18 — Game Over rebuilt from separate components
+
+User rejected the single composite plate (white hole, leftover slots). Generated one sprite per piece, no baked text, and assembled them in Unity:
+
+- `UI_GO_WinBg.jpg` / `UI_GO_LoseBg.jpg` — panel backgrounds
+- `UI_GO_Laurel.png` — gold wreath, real alpha
+- `UI_GO_Ring.png` — portrait ring, real alpha
+- `UI_GO_BtnNavy.jpg` / `UI_GO_BtnGold.jpg` — empty buttons
+- `UI_GO_CircleMask.png` — circular portrait mask
+
+`GameOverPanel` no longer uses the all-in-one wash plate. Portrait is a masked RawImage. Copy is TMP. Verified in Play: `UI_GO_Assembled_Win-1.png`, `UI_GO_Assembled_Lose.png`. Scene saved through the Editor.
+
+### 2026-10-18 — Game Over panel plates generated
+
+Generated text-free plates and empty button shells, then wired them to `UiVfx` / `GameOverPanel`. Copy stays TMP.
+
+- `UI_GameOver_WinPlate.jpg` — gold sunburst, sculpted wreath, empty portrait hole, two stacked recesses
+- `UI_GameOver_LosePlate.jpg` — muted bronze wreath, charcoal plate, same holes
+- `UI_GameOver_ButtonPrimary.jpg` / `UI_GameOver_ButtonGold.jpg` — empty imperial buttons (plate recesses are what show)
+
+Verified in Play at 1080x1920. Win: `UI_GameOver_WinPlate_Play-3.png`. Lose: `UI_GameOver_LosePlate_Play.png`. No baked letters. Console: 0 errors. Scene saved through the Editor.
+
+### 2026-10-18 — Game Over rebuilt after empty-card miss
+
+The first concept and the first Unity sheet were the same empty navy card with a stamp portrait. Replaced both. New win plate uses `UI_VictoryWash.jpg` (gold sunburst, ornate corners, no baked text) as a 960x1280 sheet, a 520px circular cut-out, laurel, and `WinSparkle` particles. Title is TMP "YOU WON". Loss drops the wash, shrinks the portrait, steel/crimson, no particles. Scene saved through the Editor.
+
+Verified in Play at 1080x1920. Native title crop reads YOU WON / THE COURT IS YOURS. Screenshots: `UI_GameOver_YouWon_Rebuild-1.png`, `UI_GameOver_YouLose_Rebuild.png`. Console: 0 errors.
+
+### 2026-10-18 — Game Over popup + YOU WON particles
+
+Authored `GameOverPanel` under `Table/GameOver` and saved `Assets/Scenes/Game.unity` through the Editor. After the 1.45s victory crest, `TableView` holds 1.55s then opens the popup. Retry calls `MatchController.RetryMatch`; lobby calls `ReturnToLobby`. Copy is TextMeshPro. Steal is still 2 coins.
+
+YOU WON is gold/cyan, circular winner portrait inside a generated gold laurel (`UI_VictoryLaurel.png`, real alpha, no baked text), and `UiVfx.WinSparkle`: rings, bloom, burst, rising sparks, coin flies, 6s opaque confetti, plus coins parked on the upper wreath. Overlay particles stay UI Images. YOU LOSE uses the same sheet in steel/crimson, muted wreath, no celebration.
+
+Verified in Play mode at 1080x1920. Native title crop reads **YOU WON** / **THE COURT IS YOURS**; the downscaled preview can look like "YOUWONEL" because coins pass over the N. Lose capture: **YOU LOSE**, no particles. Screenshots: `UI_GameOver_YouWon_Play-1.png`, `UI_GameOver_YouLose_Play-1.png`. Console: 0 errors.
+
+### 2026-10-18 — game-over victory VFX implemented
+
+Imported the approved `VFX_VictoryBurst_v2.jpg` into `Incoming/` and assigned
+it to the scene's `UiVfx`. Replaced the `GameOver` full-screen yellow/red wash
+with `UiVfx.Victory`, keyed by `GameEvent.PlayerIndex`, so local and opponent
+winners use the same path.
+
+The crest uses the existing additive UI shader, pops from 0.35 to 1.1, settles,
+pulses, and fades over 1.45 seconds. It plays together with a gold trail from
+the winning seat, two expanding gold/cyan rings, a cyan bloom, and radial gold
+sparks. The effect is clamped away from screen edges and does not tint or cover
+the table.
+
+Verified in Play mode using an opponent-seat source. The crest's black
+background disappeared under additive blending and the combined effect rendered
+over the opponent side. Screenshot: `Victory_VFX_Crest_Verified.png`. Unity
+reported zero console errors; edited scripts have zero linter diagnostics.
+
+Follow-up: the additive crest looked too translucent. Created
+`VFX_VictoryBurst_v2_Alpha.png`, preserving the opaque dark medallion while
+cutting out the exterior background, switched the crest to normal UI
+compositing, and reassigned the scene reference. The crest is now solid while
+the surrounding rings and sparks retain their glow. Verified in Play mode:
+`Victory_VFX_Opaque_Verified.png`; zero console and lint errors.
 
 ### 2026-10-18 — imperial reference restyle integrated by Codex
 

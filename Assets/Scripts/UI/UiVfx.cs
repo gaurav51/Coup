@@ -51,7 +51,17 @@ namespace Coup.Game.UI
         public Sprite assassinationReticle;
         public Sprite shockwaveParticle;
         public Sprite smokeParticle;
+        public Sprite victoryCrest;
+        public Sprite victoryLaurel;
+        public Sprite victoryWash;
+        public Sprite victoryLoseWash;
+        public Sprite victoryButtonNavy;
+        public Sprite victoryButtonGold;
+        public Sprite victoryRing;
+        public Sprite victoryHalo;
+        public Sprite victoryCircleMask;
         private AssassinationCue _assassination;
+        private VictoryCue _victory;
         private bool _coupActive;
         public bool HasAssassination => _assassination != null;
         public int LiveParticleCount => _live.Count + (_assassination != null ? 2 : 0);
@@ -64,6 +74,14 @@ namespace Coup.Game.UI
             public Image Knife;
             public float Started, ResolveAt = -1f;
             public bool Hit;
+        }
+
+        private sealed class VictoryCue
+        {
+            public Image Crest;
+            public RectTransform Rect;
+            public Vector2 At;
+            public float Started;
         }
 
         private readonly List<Banner> _banners = new();
@@ -238,6 +256,48 @@ namespace Coup.Game.UI
             Ring(at, colour, 420f);
             Ring(at, colour, 640f, 0.07f);
             Burst(at, colour, 14, 500f);
+        }
+
+        /// <summary>
+        /// Imperial victory crest plus rings, sparks and a trail from the winner.
+        /// The crest uses the additive UI material, so its black background vanishes.
+        /// </summary>
+        public void Victory(Vector2 winner)
+        {
+            if (_root == null) return;
+            RetireVictory();
+
+            var bounds = _root.rect;
+            var at = Vector2.Lerp(winner, Vector2.zero, 0.32f);
+            at.x = Mathf.Clamp(at.x, bounds.xMin + 250f, bounds.xMax - 250f);
+            at.y = Mathf.Clamp(at.y, bounds.yMin + 250f, bounds.yMax - 250f);
+
+            if (victoryCrest != null)
+            {
+                // The crest has a real alpha cutout, so normal UI compositing keeps
+                // its dark medallion and gold leaves solid over the table.
+                var crest = Take(victoryCrest, 480f);
+                var rect = (RectTransform)crest.transform;
+                rect.anchoredPosition = at;
+                rect.localScale = Vector3.one * 0.35f;
+                rect.SetAsLastSibling();
+                crest.color = Color.clear;
+                _victory = new VictoryCue
+                {
+                    Crest = crest,
+                    Rect = rect,
+                    At = at,
+                    Started = Time.unscaledTime
+                };
+            }
+
+            var gold = new Color(1f, 0.68f, 0.16f, 1f);
+            var cyan = new Color(0.25f, 0.82f, 1f, 1f);
+            Streak(winner, at, gold, 14);
+            Ring(at, gold, 440f, 0.06f);
+            Ring(at, cyan, 620f, 0.16f);
+            Bloom(at, cyan, 250f);
+            Burst(at, gold, 30, 520f);
         }
 
         /// <summary>A soft disc of the character's colour, the part that reads as the hit.</summary>
@@ -585,6 +645,7 @@ namespace Coup.Game.UI
         {
             StopAllCoroutines();
             _coupActive = false;
+            RetireVictory();
             if (_assassination != null)
             {
                 Release(_assassination.Reticle);
@@ -710,6 +771,7 @@ namespace Coup.Game.UI
         {
             var now = Time.unscaledTime;
             TickAssassination(now);
+            TickVictory(now);
             TickBanners(now);
             if (_live.Count == 0) return;
 
@@ -760,6 +822,64 @@ namespace Coup.Game.UI
 
                 _live[i] = a;
             }
+        }
+
+        private void TickVictory(float now)
+        {
+            if (_victory == null) return;
+            if (_victory.Crest == null || _victory.Rect == null)
+            {
+                _victory = null;
+                return;
+            }
+
+            const float pop = 0.22f;
+            const float settle = 0.38f;
+            const float hold = 1.02f;
+            const float end = 1.45f;
+            var t = now - _victory.Started;
+            if (t >= end)
+            {
+                RetireVictory();
+                return;
+            }
+
+            float scale;
+            float alpha;
+            if (t < pop)
+            {
+                var u = EaseOutBack(Mathf.Clamp01(t / pop));
+                scale = Mathf.LerpUnclamped(0.35f, 1.1f, u);
+                alpha = Mathf.Clamp01(t / 0.08f);
+            }
+            else if (t < settle)
+            {
+                var u = (t - pop) / (settle - pop);
+                scale = Mathf.Lerp(1.1f, 1f, u);
+                alpha = 1f;
+            }
+            else if (t < hold)
+            {
+                scale = 1f + Mathf.Sin((t - settle) * 7f) * 0.015f;
+                alpha = 1f;
+            }
+            else
+            {
+                var u = Mathf.Clamp01((t - hold) / (end - hold));
+                scale = Mathf.Lerp(1f, 1.08f, u);
+                alpha = 1f - u * u;
+            }
+
+            _victory.Rect.anchoredPosition = _victory.At;
+            _victory.Rect.localScale = Vector3.one * scale;
+            _victory.Crest.color = new Color(1f, 1f, 1f, alpha);
+        }
+
+        private void RetireVictory()
+        {
+            if (_victory == null) return;
+            if (_victory.Crest != null) Release(_victory.Crest);
+            _victory = null;
         }
 
         /// <summary>Pops the title up, holds it, then lets it drift away inside the event pause.</summary>

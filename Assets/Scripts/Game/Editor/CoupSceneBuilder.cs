@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 using Coup.Core;
 using Coup.Game;
@@ -152,7 +153,7 @@ namespace Coup.EditorTools
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // Camera — the HUD renders in overlay, so this only paints the backdrop.
+            // Camera — the HUD and the win confetti both render through this camera.
             var camGo = new GameObject("Main Camera", typeof(Camera));
             camGo.tag = "MainCamera";
             var cam = camGo.GetComponent<Camera>();
@@ -161,12 +162,37 @@ namespace Coup.EditorTools
             cam.orthographic = true;
             camGo.transform.position = new Vector3(0, 0, -10);
 
+            var confettiLayer = LayerMask.NameToLayer("Confetti");
+            if (confettiLayer >= 0)
+            {
+                var confettiGo = new GameObject("ConfettiCamera");
+                confettiGo.transform.SetParent(camGo.transform, false);
+                var confettiCam = confettiGo.AddComponent<Camera>();
+                confettiCam.orthographic = true;
+                confettiCam.orthographicSize = cam.orthographicSize;
+                confettiCam.clearFlags = CameraClearFlags.Depth;
+                confettiCam.cullingMask = 1 << confettiLayer;
+                confettiCam.nearClipPlane = cam.nearClipPlane;
+                confettiCam.farClipPlane = cam.farClipPlane;
+                cam.cullingMask &= ~confettiCam.cullingMask;
+
+                var confettiData = confettiGo.GetComponent<UniversalAdditionalCameraData>();
+                if (confettiData == null) confettiData = confettiGo.AddComponent<UniversalAdditionalCameraData>();
+                confettiData.renderType = CameraRenderType.Overlay;
+
+                var mainData = camGo.GetComponent<UniversalAdditionalCameraData>();
+                if (mainData == null) mainData = camGo.AddComponent<UniversalAdditionalCameraData>();
+                mainData.cameraStack.Add(confettiCam);
+            }
+
             BuildEventSystem();
 
             // Canvas — portrait 1080x1920, scaled by width so the phone-width layout holds.
             var canvasGo = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             var canvas = canvasGo.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+            canvas.planeDistance = 10f;
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;

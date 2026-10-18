@@ -12,9 +12,34 @@ or watermark got baked in (automatic reject).
 
 ## Pending
 
-**Nothing. No card art is needed right now.** The request that used to sit here
-was based on a mistake, withdrawn 2026-10-18. The reasoning is kept below
-because it is worth not repeating.
+### 2026-10-18 — replace yellow game-over wash
+
+The user wants the solid yellow screen effect at game over replaced with an
+actual victory VFX. They approved the generated gold-laurel/cyan-star crest at:
+
+`/Users/gaurav-bs/.cursor/projects/Users-gaurav-bs-Coup/assets/VFX_VictoryBurst_v2.jpg`
+
+Please import that image as the centrepiece using an additive material so its
+pure-black background disappears, then combine it with the existing transparent
+imperial ring/spark VFX:
+
+- trigger this for every `GameOver` event, regardless of whether the winner is
+  the local player or an opponent; use `GameEvent.PlayerIndex` as the winning
+  seat;
+- centre the effect on the winning player/profile (screen centre is an
+  acceptable fallback);
+- pop the crest from 0.35 scale to 1.1, settle at 1.0, then fade;
+- expand two thin gold rings at slightly different speeds;
+- punch a cyan-white light at the crest's centre and emit a restrained radial
+  burst of gold sparks;
+- add a brief upward sparkle trail from the winning profile to the crest;
+- keep the table visible throughout — no opaque overlay or full-screen colour
+  wash;
+- finish in roughly 1.2–1.5 seconds and do not block the result controls after
+  the animation completes. The image and procedural VFX should play together.
+
+The withdrawn request below is retained because its reasoning is worth not
+repeating.
 
 ### Withdrawn: "the baked-in card text is unreadable"
 

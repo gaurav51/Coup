@@ -108,6 +108,11 @@ InitTestScene*.unity*
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
 
+# Editor recovery copies of open scenes, written after a crash or an
+# interrupted play session. Local safety nets, not project content.
+/[Aa]ssets/_[Rr]ecovery/
+/[Aa]ssets/_[Rr]ecovery.meta
+
 # macOS
 .DS_Store
 .AppleDouble

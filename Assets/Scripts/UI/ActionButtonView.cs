@@ -60,7 +60,17 @@ namespace Coup.Game.UI
                 icon.enabled = icon.sprite != null;
             }
 
-            if (label != null) label.text = entry?.label ?? kind.ToString();
+            if (label != null)
+            {
+                label.text = entry?.label ?? kind.ToString();
+                // "Assassinate" is wider than the button at the authored 20pt, so it
+                // truncated mid-word. The longest names shrink instead; short ones are
+                // unchanged because the maximum is the size the prefab already used.
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 13f;
+                label.fontSizeMax = 20f;
+            }
+
             if (cost != null) cost.text = entry?.subtitle ?? "";
         }
 

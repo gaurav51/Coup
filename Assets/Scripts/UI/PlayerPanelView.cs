@@ -293,29 +293,7 @@ namespace Coup.Game.UI
 
         private void RefreshClaim(Role? claim, string deed)
         {
-            if (claimBadge == null) return;
-
-            var show = claim.HasValue || !string.IsNullOrEmpty(deed);
-            if (claimBadge.activeSelf != show) claimBadge.SetActive(show);
-            if (!show) return;
-
-            var text = DeedText(claim, deed);
-            if (claimText != null && claimText.text != text)
-            {
-                claimText.text = text;
-                claimText.color = claim.HasValue
-                    ? UIFactory.Readable(_art?.Accent(claim.Value) ?? Color.white)
-                    : UIFactory.Gold;
-                CoupTween.PopIn((RectTransform)claimBadge.transform, UIFactory.Group(claimBadge), CoupTween.Quick);
-            }
-        }
-
-        private string DeedText(Role? claim, string deed)
-        {
-            var character = claim.HasValue ? (_art?.DisplayName(claim.Value) ?? claim.Value.ToString()) : null;
-            if (!string.IsNullOrEmpty(deed) && character != null) return $"{deed} · {character}";
-            if (!string.IsNullOrEmpty(deed)) return deed;
-            return $"claims {character}";
+            if (claimBadge != null && claimBadge.activeSelf) claimBadge.SetActive(false);
         }
 
         public void SetTurn(bool on)

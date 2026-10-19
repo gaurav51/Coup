@@ -22,7 +22,10 @@ namespace Coup.Game
         private TMPro.TMP_Text _message;
         private bool _disposed, _connecting, _ready, _sending, _terminal;
         private string _code, _token;
-        private float _deadlineAt = -1, _windowSeconds = -1;
+        private float _deadlineAt = -1, _windowSeconds = -1, _queueDeadlineAt = -1;
+        private string _queueHeading;
+        /// <summary>Seconds until the matchmaking window lapses, or -1 when not queueing.</summary>
+        public int QueueSecondsRemaining => _queueDeadlineAt < 0 ? -1 : Mathf.Max(0, Mathf.CeilToInt(_queueDeadlineAt - Time.realtimeSinceStartup));
         /// <summary>How much of this turn's clock is left, 0..1, or -1 when there is no clock.</summary>
         public float TurnProgress => _deadlineAt < 0 || _windowSeconds <= 0 ? -1f
             : Mathf.Clamp01((_deadlineAt - Time.realtimeSinceStartup) / _windowSeconds);
@@ -34,7 +37,24 @@ namespace Coup.Game
             _socket.EventReceived += OnSocketEvent;
             _socket.Closed += OnClosed;
         }
-        public void Pump() { while (_main.TryDequeue(out var action)) if (!_disposed) action(); }
+        public void Pump() {
+            while (_main.TryDequeue(out var action)) if (!_disposed) action();
+            TickQueue();
+        }
+
+        /// <summary>
+        /// The waiting card is rebuilt only when a lobby:state arrives, which is far
+        /// too rarely to count anything down, so the last line is rewritten here each
+        /// frame while the search is up.
+        /// </summary>
+        private void TickQueue() {
+            if (_disposed || _queueHeading == null || _message == null) return;
+            if (_overlay == null || !_overlay.activeSelf) return;
+            var left = QueueSecondsRemaining;
+            _message.text = _queueHeading + "\n\n" + (left > 0
+                ? "Starting in " + left + "s, or sooner if the table fills."
+                : "Seating the court…");
+        }
         public void Begin() => Reconnect();
         public void CheckConnection() { if (!_socket.IsOpen && !_terminal) Reconnect(); }
         private void OnClosed(string message) { _ready = false; if (!_terminal) Reconnect(); }
@@ -112,7 +132,13 @@ namespace Coup.Game
         private void OnSocketEvent(string name, JsonValue payload) {
             if (_disposed) return;
             switch(name) {
-                case "lobby:state": _lobby = payload; if (payload.Str("status") == "lobby" && !_connecting) ShowLobby(); break;
+                case "lobby:state":
+                    _lobby = payload;
+                    var queueEnd = payload.Get("queueDeadline"); var lobbyNow = payload.Get("serverTime");
+                    _queueDeadlineAt = queueEnd?.Type == JsonValue.Kind.Number && lobbyNow?.Type == JsonValue.Kind.Number
+                        ? Time.realtimeSinceStartup + (float)((queueEnd.Number - lobbyNow.Number) / 1000) : -1f;
+                    if (payload.Str("status") == "lobby" && !_connecting) ShowLobby();
+                    break;
                 case "game:log": _openingLog = payload.Arr("events"); break;
                 case "game:state":
                     var deadline=payload.Get("deadline"); var serverTime=payload.Get("serverTime");
@@ -128,6 +154,7 @@ namespace Coup.Game
                         _deadlineAt=next;
                     }
                     _ready = true; var log = _openingLog; _openingLog = null;
+                    _queueHeading = null; _queueDeadlineAt = -1f;
                     _match.ShowServerState(payload, log); if (_overlay != null) _overlay.SetActive(false); break;
                 case "game:event": _match.ShowServerEvent(payload); break;
                 case "action:rejected":
@@ -138,8 +165,14 @@ namespace Coup.Game
         private void ShowLobby(string error = null) {
             if (_lobby == null) return;
             var queue = !string.IsNullOrEmpty(MatchLaunch.QueueMode);
-            var text = queue ? "FINDING AN OPPONENT\n" + MatchLaunch.QueueMode.ToUpperInvariant() : "PRIVATE TABLE  " + _lobby.Str("code");
-            foreach (var player in _lobby.Arr("players") ?? new List<JsonValue>()) text += "\n" + player.Str("name") + (player.Flag("host") ? "  · HOST" : "") + (!player.Flag("connected") ? "  · RECONNECTING" : player.Flag("ready") ? "  · READY" : "  · WAITING");
+            var players = _lobby.Arr("players") ?? new List<JsonValue>();
+            // Casual deals at four, ranked at two. Saying which makes the wait legible.
+            var target = MatchLaunch.QueueMode == "ranked" ? 2 : 4;
+            var text = queue
+                ? "FINDING PLAYERS\n" + MatchLaunch.QueueMode.ToUpperInvariant() + "  ·  " + players.Count + " of " + target + " seated"
+                : "PRIVATE TABLE  " + _lobby.Str("code");
+            foreach (var player in players) text += "\n" + player.Str("name") + (player.Flag("host") ? "  · HOST" : "") + (!player.Flag("connected") ? "  · RECONNECTING" : player.Flag("ready") ? "  · READY" : "  · WAITING");
+            _queueHeading = queue && error == null && _queueDeadlineAt >= 0 ? text : null;
             Show(text + (error == null ? "" : "\n\n" + error));
             if (!queue && _lobby.Get("you")?.Flag("host") == true) {
                 AddButton("Start match", new Vector2(-205,-150), () => HostStart(false));

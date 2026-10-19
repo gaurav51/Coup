@@ -1,3 +1,23 @@
+## 2026-10-20 — Claude: queue countdown on the waiting card (finished)
+
+`queueDeadline` was already on the wire from the server change; nothing drew
+it, so a player waiting out the window just saw a static search card.
+
+The card now reads "FINDING PLAYERS / CASUAL · 1 of 4 seated" with a live
+"Starting in 22s, or sooner if the table fills." below it. The target is 4 for
+casual and 2 for ranked, matching what the server actually does, so the wait is
+legible rather than mysterious.
+
+The countdown is rewritten in `Pump`, which already runs every frame, because
+`ShowLobby` only rebuilds when a `lobby:state` arrives and that is far too
+rarely to count anything down. It stops as soon as `game:state` lands.
+
+Verified live: queued casual, read "1 of 4 seated / Starting in 22s" off the
+card at native resolution, let the window lapse, and watched it deal as
+Player + Valca, Orsin, Meridia with the turn clock running at 9s.
+
+---
+
 ## 2026-10-20 — Claude: casual queue window and a visible turn clock (finished)
 
 Two asks. One of them already existed.

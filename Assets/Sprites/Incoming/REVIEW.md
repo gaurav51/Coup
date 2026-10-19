@@ -1,3 +1,32 @@
+## 2026-10-19 — Claude: server URL made configurable (finished)
+
+`PlatformClient.DefaultUrl` was a const holding the ngrok hostname, read in
+three places and assigned nowhere, so every build was permanently bound to one
+tunnel with no way to repoint it.
+
+New `PlatformEndpoint` ScriptableObject resolves the address in three layers:
+a `-coupServer <url>` argument or `COUP_SERVER_URL` variable (development and
+QA only — release players ignore it, so a shipped build cannot be repointed);
+then the `PlatformEndpoint` asset in Resources, which is the build-time
+setting; then a compiled fallback of `http://127.0.0.1:3001`. Anything that is
+not an absolute http/https URL is rejected with a warning rather than used.
+
+The fallback is local on purpose: a build that lost its endpoint should fail
+obviously against localhost rather than quietly reach whatever host happened to
+be compiled in last.
+
+`Assets/Resources/PlatformEndpoint.asset` was created through the Editor
+holding the current ngrok URL, so today's behaviour is unchanged.
+
+Verified in Play mode: the asset resolves, an env override replaces it and has
+its trailing slash trimmed, an invalid override is ignored and falls back to
+the asset, and clearing it restores the asset value. End to end the client
+authenticated and loaded its profile from the live server. Console clean apart
+from the deliberate bad-override warning. Backend untouched; its suite is
+53/53.
+
+---
+
 ## 2026-10-19 — Claude: panel sweep, text fit and input chrome (finished)
 
 Walked Shop, Missions, Settings, Profile and Wallet in Play mode at 1080x1920,

@@ -28,7 +28,7 @@ namespace Coup.Game
 
         [Header("Online")]
         public bool playOnline = true;
-        public string serverUrl = PlatformClient.DefaultUrl;
+        public string serverUrl = PlatformEndpoint.Fallback;   // replaced by PlatformClient.BaseUrl at runtime
         public string onlineName = "You";
         public string joinCode = "";
         public bool autoStartOnline = true;

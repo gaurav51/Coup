@@ -13,7 +13,6 @@ namespace Coup.Net
     }
     public sealed class PlatformClient : MonoBehaviour
     {
-        public const string DefaultUrl = "https://curable-twistable-rising.ngrok-free.dev";
         private static PlatformClient _instance;
         public static PlatformClient Instance {
             get {
@@ -21,7 +20,8 @@ namespace Coup.Net
                 return _instance;
             }
         }
-        public string BaseUrl { get; private set; } = DefaultUrl;
+        // Resolved in Awake: an override, else the PlatformEndpoint asset, else local.
+        public string BaseUrl { get; private set; } = PlatformEndpoint.Fallback;
         public JsonValue Profile { get; private set; }
         public string AccountId => _credentials?.Str("accountId");
         public event Action Changed;
@@ -35,6 +35,7 @@ namespace Coup.Net
         private void Awake() {
             if (_instance != null && _instance != this) { Destroy(gameObject); return; }
             _instance = this;
+            BaseUrl = PlatformEndpoint.Resolve();
             try { var saved = SessionVault.Read(); if (!string.IsNullOrEmpty(saved)) _credentials = JsonValue.Parse(saved); }
             catch { _storageError = true; }
         }

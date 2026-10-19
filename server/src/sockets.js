@@ -10,6 +10,13 @@ export function channel(code) {
 
 export function attachSockets(io, store = new RoomStore()) {
   const sweep = setInterval(async () => {
+    // Public tables whose matchmaking window lapsed: seat bots and deal.
+    for (const code of store.expiredQueues?.() ?? []) {
+      try {
+        const started = await store.startQueued(code);
+        if (started) pushMatch(io, store, started);
+      } catch (err) { console.error("[coup] queue start failed", err.name); }
+    }
     for (const room of [...store.rooms.values()]) {
       if (!room.game || room.game.phase === "GameOver" || !room.deadline || room.deadline > Date.now()) continue;
       try {

@@ -82,6 +82,6 @@ export class DurableRooms extends RoomStore {
   }
 }
 
-for (const method of ["create", "join", "leave", "disconnect", "resume", "setReady", "start", "act", "actSeat", "quickJoin", "recover", "timeout"]) {
+for (const method of ["create", "join", "leave", "disconnect", "resume", "setReady", "start", "act", "actSeat", "quickJoin", "recover", "timeout", "startQueued"]) {
   DurableRooms.prototype[method] = function (...args) { return this.mutate(method, args); };
 }

@@ -164,8 +164,12 @@ test("public queues isolate modes, bind accounts, start human matches, and recov
     assert.notEqual(first.code,ranked.code);
     await assert.rejects(rooms.quickJoin({accountId:a.accountId,socketId:"dup",name:"Duplicate",mode:"ranked"}),/current table/);
     const second=await rooms.quickJoin({ accountId:b.accountId,socketId:"qb",name:"Same",mode:"casual" });
-    assert.equal(second.code,first.code); assert.equal(second.kind,"game");
-    assert.equal(rooms.peek(first.code).players.some(p=>p.bot),false);
+    assert.equal(second.code,first.code); assert.equal(second.kind,"lobby");   // casual waits for a fourth
+    const d=await accounts.guest("Third"), e=await accounts.guest("Fourth");
+    await rooms.quickJoin({ accountId:d.accountId,socketId:"qd",name:"Third",mode:"casual" });
+    const fourth=await rooms.quickJoin({ accountId:e.accountId,socketId:"qe",name:"Fourth",mode:"casual" });
+    assert.equal(fourth.code,first.code); assert.equal(fourth.kind,"game");
+    assert.equal(rooms.peek(first.code).players.some(p=>p.bot),false);   // four humans need no bots
     await rooms.disconnect("qa");
     const resumed=await rooms.recover({accountId:a.accountId,socketId:"qa-new"});
     assert.equal(resumed.code,first.code);assert.equal(resumed.seat,0);
@@ -176,6 +180,52 @@ test("public queues isolate modes, bind accounts, start human matches, and recov
     await rooms.leave("qa-new"); assert.equal(rooms.activeSeat(a.accountId),null);
     await assert.rejects(rooms.resume({code:first.code,token:first.token,accountId:a.accountId,socketId:"abandoned"}),/does not exist/);
     await rooms.disconnect("qc"); assert.equal(rooms.peek(ranked.code),null);
+  } finally { await rooms.close(); }
+});
+
+test("a casual table waits for four humans, then fills with bots when the window lapses", async () => {
+  const services = new GameServices(store);
+  const rooms = await new DurableRooms(store, { worker: "queue-window", onFinished: services.completeMatch.bind(services) }).open();
+  try {
+    const a = await accounts.guest("Lonely");
+    const first = await rooms.quickJoin({ accountId: a.accountId, socketId: "w-a", name: "Lonely", mode: "casual" });
+    assert.equal(first.kind, "lobby");
+
+    const room = rooms.peek(first.code);
+    assert.ok(room.queueDeadline > Date.now(), "the window opens with the table");
+    assert.deepEqual(rooms.expiredQueues(Date.now()), [], "and has not lapsed yet");
+
+    // A second human is not enough on casual; the table keeps waiting.
+    const b = await accounts.guest("Also waiting");
+    assert.equal((await rooms.quickJoin({ accountId: b.accountId, socketId: "w-b", name: "Also waiting", mode: "casual" })).kind, "lobby");
+
+    // Once it lapses the sweep sees it and bots take the empty seats.
+    assert.deepEqual(rooms.expiredQueues(room.queueDeadline + 1), [first.code]);
+    const started = await rooms.startQueued(first.code);
+    assert.equal(started.kind, "game");
+    const seated = rooms.peek(first.code);
+    assert.equal(seated.players.length, 4);
+    assert.equal(seated.players.filter(p => p.bot).length, 2);
+    assert.equal(seated.queueDeadline, null, "the window closes with the deal");
+    assert.deepEqual(rooms.expiredQueues(Date.now() + 999999), [], "and is not started twice");
+
+    // Bots on the table make it unrewardable, which is what stops farming.
+    const humans = seated.players.filter(p => !p.bot);
+    assert.equal(humans.length === seated.players.length, false);
+  } finally { await rooms.close(); }
+});
+
+test("ranked still pairs two humans at once and never seats a bot", async () => {
+  const rooms = await new DurableRooms(store, { worker: "ranked-window" }).open();
+  try {
+    const a = await accounts.guest("R One"), b = await accounts.guest("R Two");
+    const first = await rooms.quickJoin({ accountId: a.accountId, socketId: "r-a", name: "R One", mode: "ranked" });
+    assert.equal(first.kind, "lobby");
+    assert.equal(rooms.peek(first.code).queueDeadline ?? null, null, "ranked opens no window");
+    const second = await rooms.quickJoin({ accountId: b.accountId, socketId: "r-b", name: "R Two", mode: "ranked" });
+    assert.equal(second.kind, "game");
+    assert.equal(rooms.peek(first.code).players.some(p => p.bot), false);
+    assert.deepEqual(rooms.expiredQueues(Date.now() + 999999), [], "and never waits for a sweep");
   } finally { await rooms.close(); }
 });
 

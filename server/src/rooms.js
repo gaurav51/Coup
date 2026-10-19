@@ -15,6 +15,27 @@ import {
   parseRole,
 } from "./rules.js";
 
+/**
+ * A public table stays open this long for humans to arrive. Four is enough to
+ * play, so the match starts the moment a fourth sits down rather than holding
+ * out for a full six. If the window lapses short of that, bots take the empty
+ * seats so nobody is left waiting alone.
+ *
+ * Filling with bots costs the humans their rewards, and that is deliberate:
+ * completeMatch only pays out when every seat is human, so a bot-filled table
+ * cannot be farmed.
+ */
+const QUEUE_WINDOW_MS = 40000;
+const QUEUE_START_HUMANS = 4;
+const QUEUE_SEATS = 4;
+/**
+ * Ranked keeps its old behaviour: it pairs as soon as two humans are waiting
+ * and never seats a bot. Filling a ranked table would make it unratable, since
+ * completeMatch only adjusts Elo when every seat is human, so the wait would
+ * buy nothing.
+ */
+const RANKED_START_HUMANS = 2;
+
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /**
@@ -226,7 +247,8 @@ export class RoomStore {
   quickJoin({ accountId, socketId, name, mode }) {
     if (!accountId || !["casual", "ranked"].includes(mode)) throw new RoomError("Invalid matchmaking request.");
     if (this.activeSeat(accountId)) throw new RoomError("Resume or leave your current table first.");
-    const waiting = [...this.rooms.values()].find(r => r.mode === mode && r.status === "lobby" && r.players.length === 1 && r.players[0].connected);
+    const waiting = [...this.rooms.values()].find(r => r.mode === mode && r.status === "lobby"
+      && r.players.length < MAX_PLAYERS && r.players.some(p => p.connected));
     let result;
     if (waiting) {
       // Public names need not be globally unique; the account owns the seat.
@@ -235,13 +257,47 @@ export class RoomStore {
       result = RoomStore.prototype.join.call(this, { code: waiting.code, name: safeName, accountId, socketId });
     } else result = RoomStore.prototype.create.call(this, { accountId, socketId, name, mode });
     const room = this.peek(result.code);
-    room.players.find(p => p.socketId === socketId).ready = true;
-    if (room.players.length >= 2) {
-      const host = room.players.find(p => p.token === room.hostToken);
-      const started = RoomStore.prototype.start.call(this, host.socketId, undefined, 0);
-      return { ...started, token: result.token, seat: result.seat };
+    const player = room.players.find(p => p.socketId === socketId);
+    player.ready = true;
+    // The window belongs to the table, not to each arrival, so a late joiner
+    // never resets the wait for whoever has been sitting there already.
+    if (room.mode === "casual") room.queueDeadline = room.queueDeadline ?? Date.now() + QUEUE_WINDOW_MS;
+    const needed = room.mode === "casual" ? QUEUE_START_HUMANS : RANKED_START_HUMANS;
+    if (room.players.filter(p => !p.bot && p.connected).length >= needed) {
+      const started = RoomStore.prototype.startQueued.call(this, room.code);
+      if (started) return { ...started, token: result.token, seat: result.seat };
     }
-    return this.lobbyResult(room, room.players[0]);
+    return this.lobbyResult(room, player);
+  }
+
+  /**
+   * Starts a queued public table: either a fourth human arrived, or the window
+   * lapsed and bots are taking the empty seats.
+   *
+   * start() refuses bots in a public match so nobody can farm rewards against
+   * them. That guard stays in place for client commands; this path seats the
+   * bots itself and then starts with a botCount of zero. Nothing becomes
+   * farmable, because completeMatch pays out only when every seat is human.
+   */
+  startQueued(code) {
+    const room = this.peek(code);
+    if (!room || room.status !== "lobby" || room.mode === "private") return null;
+    if (!room.players.some(seat => !seat.bot && seat.connected)) return null;
+    if (room.mode === "casual") this.addBots(room, Math.max(0, QUEUE_SEATS - room.players.length));
+    if (room.players.length < MIN_PLAYERS) return null;
+    for (const seat of room.players) seat.ready = true;
+    room.queueDeadline = null;
+    const host = room.players.find(seat => seat.token === room.hostToken && seat.socketId)
+      ?? room.players.find(seat => seat.socketId);
+    if (!host) return null;
+    return RoomStore.prototype.start.call(this, host.socketId, undefined, 0);
+  }
+
+  /** Public tables whose window has lapsed. The socket sweep starts each one. */
+  expiredQueues(now = Date.now()) {
+    return [...this.rooms.values()]
+      .filter(room => room.status === "lobby" && room.mode === "casual" && room.queueDeadline && room.queueDeadline <= now)
+      .map(room => room.code);
   }
 
   timeout(code, now = Date.now()) {
@@ -414,6 +470,8 @@ export class RoomStore {
     return {
       code: room.code,
       status: room.status,
+      queueDeadline: room.queueDeadline ?? null,
+      serverTime: Date.now(),
       you: {
         name: player.name,
         seat: player.seat,

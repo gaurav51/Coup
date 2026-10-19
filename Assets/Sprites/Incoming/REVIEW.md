@@ -1,3 +1,30 @@
+## 2026-10-19 — Claude: platform panel chrome and fit (finished)
+
+Redid the runtime modal panels built by `PlatformPanels.cs` — Play, Collection,
+Shop, Missions, Settings and every other page share one builder, so this is all
+of them rather than Play alone.
+
+Two problems. The card height was a flat `min(1480, canvas*0.88)`, so the Play
+menu's four rows (about 400px) sat in a 1480px card with a third of the screen
+empty beneath them. And the chrome was flat fills with an `Outline` component,
+which reads as programmer art beside the marble-and-gold lobby behind it.
+
+The card and its rows now use `CoupArt.roundedPanel` / `roundedBorder`, the same
+9-slice pair the card and player frames already use, via a `Plaque` helper.
+`FitCard` sizes the card to its content between 560 and the old maximum, and the
+status band is only reserved when status has text. Back is narrower and quieter
+so it reads as a way out rather than a fifth option.
+
+Verified in Play mode at 1080x1920, cropped at native resolution: Play fits
+snugly with no dead space, Collection grows to the cap and scrolls with its
+status text and card thumbnails intact. Console: zero errors, zero warnings.
+Returned to edit mode. No scene, prefab or art changes — this is one script.
+
+Not covered: the lobby screen behind the modals, and panels that need a live
+backend were only exercised against whatever the local server returned.
+
+---
+
 ## 2026-10-19 — Codex: Mac backend hosting (hosting finished; game platform still in progress)
 
 Configured authenticated MongoDB backend on loopback 3001, persistent single-member MongoDB 8.0.17 replica set on loopback 27017, and stable ngrok HTTPS ingress at https://curable-twistable-rising.ngrok-free.dev. ngrok credentials were configured by the user; no token copied into source or this log. Request inspection disabled. Generated signing secret is in ignored .env.local (0600); persistent database/logs are in ignored .data (0700). Installed macOS login service com.coup.local-backend to start/restart the stack. Mac must stay awake and online. Existing legacy process on 3000 is not the ngrok upstream.

@@ -17,6 +17,8 @@ namespace Coup.Game.UI
     {
         private Transform _content;
         private ScrollRect _scroll;
+        private RectTransform _card, _viewport, _close;
+        private float _maxCardHeight;
         public bool Loading => _status != null && _status.text == "Loading…";
         private GameObject _root;
         private TMP_Text _title, _status;
@@ -74,22 +76,68 @@ namespace Coup.Game.UI
             var root=UIFactory.Rect("PlatformPanels",transform,Vector2.zero,Vector2.zero); Stretch(root);
             var dim=root.gameObject.AddComponent<Image>();dim.color=new Color(.015f,.025f,.045f,.90f);_root=root.gameObject;
             var canvas=GetComponentInParent<Canvas>().transform as RectTransform;
-            var height=Mathf.Min(1480,canvas.rect.height*.88f);
-            var card=UIFactory.Rect("Card",root,new Vector2(940,height),Vector2.zero);
-            var bg=card.gameObject.AddComponent<Image>();bg.color=new Color(.025f,.055f,.09f,.99f);
-            var outline=card.gameObject.AddComponent<Outline>();outline.effectColor=UIFactory.Gold;outline.effectDistance=new Vector2(2,2);
+            _maxCardHeight=Mathf.Min(1480,canvas.rect.height*.88f);
+            var height=_maxCardHeight;
+            var card=UIFactory.Rect("Card",root,new Vector2(940,height),Vector2.zero);_card=card;
+            Plaque(card,new Color(.025f,.055f,.09f,.99f),UIFactory.Gold,0f);
             _title=UIFactory.Text("Title",card,"",42,new Vector2(800,90),new Vector2(0,height/2-75));_title.color=UIFactory.Gold;
             _status=UIFactory.Text("Status",card,"",27,new Vector2(820,120),new Vector2(0,height/2-175));_status.richText=false;
-            var viewport=UIFactory.Rect("Viewport",card,new Vector2(840,height-430),new Vector2(0,-25));
+            var viewport=UIFactory.Rect("Viewport",card,new Vector2(840,height-430),new Vector2(0,-25));_viewport=viewport;
             var image=viewport.gameObject.AddComponent<Image>();image.color=new Color(1,1,1,.001f);viewport.gameObject.AddComponent<RectMask2D>();
             var content=UIFactory.Rect("Content",viewport,new Vector2(840,0),Vector2.zero);content.anchorMin=new Vector2(0,1);content.anchorMax=new Vector2(1,1);content.pivot=new Vector2(.5f,1);content.sizeDelta=Vector2.zero;
             var layout=content.gameObject.AddComponent<VerticalLayoutGroup>();layout.spacing=18;layout.padding=new RectOffset(8,8,8,12);layout.childControlWidth=true;layout.childControlHeight=true;layout.childForceExpandHeight=false;
             var fit=content.gameObject.AddComponent<ContentSizeFitter>();fit.verticalFit=ContentSizeFitter.FitMode.PreferredSize;
             var scroll=viewport.gameObject.AddComponent<ScrollRect>();scroll.viewport=viewport;scroll.content=content;scroll.horizontal=false;scroll.movementType=ScrollRect.MovementType.Clamped;scroll.scrollSensitivity=50;_scroll=scroll;
             _content=content;
-            var close=UIFactory.Button("Close",card,null,new Vector2(820,85),new Vector2(0,-height/2+75));close.GetComponent<Image>().color=new Color(.13f,.17f,.23f);
-            UIFactory.Text("Label",close.transform,"BACK",30,new Vector2(780,75),Vector2.zero);close.onClick.AddListener(Close);
+            // Back is a way out, not a fifth choice, so it stays narrower and quieter
+            // than the rows above it rather than matching their full width.
+            var close=UIFactory.Button("Close",card,null,new Vector2(420,78),new Vector2(0,-height/2+72));_close=(RectTransform)close.transform;
+            var closeImage=close.GetComponent<Image>();closeImage.sprite=_art!=null?_art.roundedPanel:null;closeImage.type=Image.Type.Sliced;closeImage.preserveAspect=false;closeImage.color=new Color(.08f,.11f,.16f,.95f);
+            var closeRim=UIFactory.Image("Rim",close.transform,_art!=null?_art.roundedBorder:null,new Vector2(420,78),Vector2.zero,false);closeRim.type=Image.Type.Sliced;closeRim.color=new Color(UIFactory.Gold.r,UIFactory.Gold.g,UIFactory.Gold.b,.45f);
+            Stretch((RectTransform)closeRim.transform);
+            UIFactory.Text("Label",close.transform,"BACK",28,new Vector2(380,68),Vector2.zero).color=new Color(.78f,.74f,.66f);
+            close.onClick.AddListener(Close);
             _root.SetActive(false);
+        }
+
+        /// <summary>
+        /// The lobby behind these panels is marble and antique gold. A flat fill with
+        /// an Outline component reads as programmer art next to it, so panels borrow
+        /// the 9-slice pair the card and player frames already use: roundedPanel for
+        /// the fill, roundedBorder stretched over it for the rim.
+        /// </summary>
+        private void Plaque(RectTransform target,Color fill,Color rim,float inset) {
+            var bg=target.gameObject.AddComponent<Image>();
+            bg.sprite=_art!=null?_art.roundedPanel:null;bg.type=Image.Type.Sliced;bg.preserveAspect=false;bg.color=fill;
+            var border=UIFactory.Image("Rim",target,_art!=null?_art.roundedBorder:null,target.sizeDelta,Vector2.zero,false);
+            border.type=Image.Type.Sliced;border.color=rim;
+            var rt=(RectTransform)border.transform;
+            rt.anchorMin=Vector2.zero;rt.anchorMax=Vector2.one;
+            rt.offsetMin=new Vector2(inset,inset);rt.offsetMax=new Vector2(-inset,-inset);
+        }
+
+        /// <summary>
+        /// Sizes the card to what it is actually showing. The height used to be a flat
+        /// min(1480, canvas*0.88), so the Play menu's four rows — about 400px — sat in
+        /// a 1480px card and left a third of the screen empty beneath them. The 430 is
+        /// the chrome the viewport does not cover: title, status and the Back row.
+        /// </summary>
+        private void FitCard() {
+            if(_card==null)return;
+            Canvas.ForceUpdateCanvases();
+            // Status only needs room when it has something to say. A plain menu like
+            // Play leaves it empty, and reserving its band regardless opened a hole
+            // between the title and the first row.
+            var hasStatus=_status!=null&&!string.IsNullOrEmpty(_status.text);
+            var top=hasStatus?240f:150f;
+            const float bottom=172f;
+            var h=Mathf.Clamp(((RectTransform)_content).rect.height+top+bottom,560f,_maxCardHeight);
+            var view=h-top-bottom;
+            _card.sizeDelta=new Vector2(940,h);
+            if(_viewport!=null){_viewport.sizeDelta=new Vector2(840,view);_viewport.anchoredPosition=new Vector2(0,h/2-top-view/2);}
+            if(_title!=null)((RectTransform)_title.transform).anchoredPosition=new Vector2(0,h/2-72);
+            if(_status!=null)((RectTransform)_status.transform).anchoredPosition=new Vector2(0,h/2-168);
+            if(_close!=null)_close.anchoredPosition=new Vector2(0,-h/2+72);
         }
         private static void Stretch(RectTransform t) { t.anchorMin=Vector2.zero;t.anchorMax=Vector2.one;t.offsetMin=t.offsetMax=Vector2.zero; }
         public void Close() { _view.Cancel(); _root.SetActive(false);_busy=false;_page=null; }
@@ -98,19 +146,21 @@ namespace Coup.Game.UI
             _page=page;_busy=false;
             foreach(var old in new[]{"InformationSheet","FriendsSheet"}) {var t=transform.Find(old);if(t!=null)t.gameObject.SetActive(false);}
             _root.SetActive(true);_root.transform.SetAsLastSibling();Clear();_title.text=page.ToUpperInvariant();_status.text="Loading…";
-            try { await Load(page,cancellation); cancellation.ThrowIfCancellationRequested(); if(_status.text=="Loading…")_status.text=""; Canvas.ForceUpdateCanvases(); _scroll.StopMovement(); _scroll.verticalNormalizedPosition=1; }
+            try { await Load(page,cancellation); cancellation.ThrowIfCancellationRequested(); if(_status.text=="Loading…")_status.text=""; FitCard(); Canvas.ForceUpdateCanvases(); _scroll.StopMovement(); _scroll.verticalNormalizedPosition=1; }
             catch(OperationCanceledException) { }
-            catch(Exception error) { if(!cancellation.IsCancellationRequested && this!=null) { Clear();_status.text=error is ApiException || error is InvalidOperationException ? error.Message : "This screen could not load. Please try again.";Button("Try again",()=> {Show(page);return Task.CompletedTask;});Button("Play on this device",()=> {LaunchLocal();return Task.CompletedTask;}); if(error is ApiException api && api.Status==401) Button("Account recovery",()=>{Show("Account");return Task.CompletedTask;}); } }
+            catch(Exception error) { if(!cancellation.IsCancellationRequested && this!=null) { Clear();_status.text=error is ApiException || error is InvalidOperationException ? error.Message : "This screen could not load. Please try again.";Button("Try again",()=> {Show(page);return Task.CompletedTask;});Button("Play on this device",()=> {LaunchLocal();return Task.CompletedTask;}); if(error is ApiException api && api.Status==401) Button("Account recovery",()=>{Show("Account");return Task.CompletedTask;}); FitCard(); } }
         }
         private void Clear() { foreach(Transform t in _content) { t.gameObject.SetActive(false);Destroy(t.gameObject); } }
         private RectTransform Row(string name,float height) {var rt=UIFactory.Rect(name,_content,new Vector2(800,height),Vector2.zero);rt.gameObject.AddComponent<LayoutElement>().preferredHeight=height;return rt;}
         private void Text(string value,float height=120) {var row=Row("Text",height);var label=UIFactory.Text("Body",row,value,31,new Vector2(790,height),Vector2.zero,TextAlignmentOptions.TopLeft);label.richText=false;}
         private void Button(string label,Func<Task> action,bool enabled=true) {
-            var row=Row(label,86);var image=row.gameObject.AddComponent<Image>();image.color=new Color(.10f,.15f,.21f);
-            var outline=row.gameObject.AddComponent<Outline>();outline.effectColor=UIFactory.Gold;outline.effectDistance=Vector2.one;
+            var row=Row(label,92);
+            var gold=UIFactory.Gold;
+            Plaque(row,enabled?new Color(.10f,.15f,.21f,.97f):new Color(.07f,.09f,.12f,.92f),
+                       enabled?new Color(gold.r,gold.g,gold.b,.70f):new Color(.45f,.45f,.48f,.30f),2f);
             var button=row.gameObject.AddComponent<Button>();button.interactable=enabled;
-            var text=UIFactory.Text("Label",row,label,30,new Vector2(760,76),Vector2.zero);text.richText=false;
-            if(!enabled)image.color=new Color(.07f,.09f,.12f);
+            var text=UIFactory.Text("Label",row,label,30,new Vector2(740,80),Vector2.zero);text.richText=false;
+            if(!enabled)text.color=new Color(.55f,.55f,.58f);
             button.onClick.AddListener(()=>Run(action));
         }
         private TMP_InputField Input(string hint,int limit=64) {

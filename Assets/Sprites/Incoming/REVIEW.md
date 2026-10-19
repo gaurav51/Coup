@@ -1,3 +1,43 @@
+## 2026-10-20 — Claude: casual queue window and a visible turn clock (finished)
+
+Two asks. One of them already existed.
+
+**Turn timer.** The server has had an authoritative one all along: 30s to act,
+20s to answer, swept every second by `sockets.js`, with `deadline` and
+`serverTime` already in `game:state` so the client can correct for clock skew,
+and `OnlineSession.SecondsRemaining` already parsing it. What was missing was
+visibility — it rendered as a text suffix on the turn label in the top bar, the
+opposite corner from where anyone looks while reading their hand.
+
+There is now a drain bar hugging the underside of the status plate and the
+seconds top-right inside it, gold above ten, amber under ten, red and pulsing
+under five. `OnlineSession` learns each window's length from the first sight of
+a new deadline, because the server sends when a turn ends and never how long it
+was, and the length differs by phase. Built in code, not authored into
+Game.unity, so the change is one script and the scene is untouched.
+
+**Casual queue.** This was genuinely missing: `quickJoin` paired the first two
+humans and a lone player waited forever with nothing to tell them so. A casual
+table now opens a 40s window and deals the moment a fourth human sits down;
+if the window lapses first, bots take the empty seats up to four. The window
+belongs to the table, so a late joiner never resets the wait for whoever was
+already there. `lobbyView` carries `queueDeadline` and `serverTime`.
+
+Ranked is deliberately untouched — it still pairs at two humans and seats no
+bots, because `completeMatch` only rates an all-human table, so filling one
+would make it unratable. That same rule is what stops bot fill being farmable.
+
+Verified against the live server, not just in tests: queued casual from the
+Editor, watched the window lapse, and the table dealt as Player + Valca, Orsin,
+Meridia — one human, three bots, four seats. Then read the bar through a real
+match and caught all three colour states (#D6B054 above ten, amber at nine,
+#E05555 at five). Backend 57/57. Console clean.
+
+Not covered: four real humans queueing at once was not tested, only the bot-fill
+path and the unit test for the four-human start.
+
+---
+
 ## 2026-10-19 — Claude: session cache for per-packet authentication (finished)
 
 The socket middleware authenticates every packet, so a burst of commands was a

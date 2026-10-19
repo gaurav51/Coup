@@ -1089,9 +1089,92 @@ namespace Coup.Game.UI
                 "Any claim can be called a bluff. If they really have the card, you lose one. If they were lying, they lose one.");
         }
 
+        private RectTransform _timerTrack;
+        private Image _timerFill;
+        private TextMeshProUGUI _timerCount;
+
+        private static readonly Color TimerCalm = new Color(0.84f, 0.69f, 0.33f);
+        private static readonly Color TimerWarning = new Color(0.95f, 0.62f, 0.18f);
+        private static readonly Color TimerUrgent = new Color(0.86f, 0.22f, 0.22f);
+
+        /// <summary>
+        /// A drain bar along the foot of the status plate, built the first time it is
+        /// needed. The clock used to be a text suffix on the turn label in the top
+        /// bar, which is the opposite corner from where anyone is looking while they
+        /// read their hand. This sits directly under "YOUR TURN".
+        ///
+        /// Built in code rather than authored into Game.unity so the whole change
+        /// stays in one script and nothing in the scene is disturbed.
+        /// </summary>
+        private void EnsureTurnTimer() {
+            if (_timerTrack != null || _stage == null) return;
+            var plate = FindRect("Stage/StatusPlate");
+            if (plate == null) return;
+
+            var track = UIFactory.Rect("TurnTimer", plate, Vector2.zero, Vector2.zero);
+            // Hugging the underside of the plate rather than sitting inside it: the
+            // plate is full of title and body text, and a bar laid over that is
+            // unreadable for both.
+            track.anchorMin = new Vector2(0f, 0f);
+            track.anchorMax = new Vector2(1f, 0f);
+            track.pivot = new Vector2(0.5f, 1f);
+            track.offsetMin = new Vector2(26f, -24f);
+            track.offsetMax = new Vector2(-26f, -10f);
+            var groove = track.gameObject.AddComponent<Image>();
+            groove.sprite = art != null ? art.roundedPanel : null;
+            groove.type = Image.Type.Sliced;
+            groove.color = new Color(0f, 0f, 0f, 0.45f);
+            groove.raycastTarget = false;
+
+            var fill = UIFactory.Rect("Fill", track, Vector2.zero, Vector2.zero);
+            fill.anchorMin = Vector2.zero; fill.anchorMax = Vector2.one;
+            fill.offsetMin = Vector2.zero; fill.offsetMax = Vector2.zero;
+            _timerFill = fill.gameObject.AddComponent<Image>();
+            _timerFill.sprite = art != null ? art.roundedPanel : null;
+            _timerFill.type = Image.Type.Filled;
+            _timerFill.fillMethod = Image.FillMethod.Horizontal;
+            _timerFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            _timerFill.raycastTarget = false;
+
+            // The seconds go top-right inside the plate, beside the title, which is
+            // the one corner the copy leaves free.
+            _timerCount = UIFactory.Text("Count", plate, "", 28, new Vector2(120f, 40f), Vector2.zero);
+            _timerCount.alignment = TextAlignmentOptions.Right;
+            _timerCount.fontStyle = FontStyles.Bold;
+            _timerCount.raycastTarget = false;
+            var countRect = (RectTransform)_timerCount.transform;
+            countRect.anchorMin = new Vector2(1f, 1f);
+            countRect.anchorMax = new Vector2(1f, 1f);
+            countRect.pivot = new Vector2(1f, 1f);
+            countRect.anchoredPosition = new Vector2(-24f, -12f);
+
+            _timerTrack = track;
+        }
+
         private void Update() {
             if (match == null || !match.playOnline || match.Game == null || _turnText == null) return;
-            _turnText.text = match.Game.Phase == GamePhase.GameOver ? "GAME OVER" : "TURN " + match.Game.TurnNumber + (match.OnlineConnected ? "  ·  " + match.OnlineSecondsRemaining + "s" : "  ·  RECONNECTING");
+            var over = match.Game.Phase == GamePhase.GameOver;
+            _turnText.text = over ? "GAME OVER"
+                : "TURN " + match.Game.TurnNumber + (match.OnlineConnected ? "" : "  ·  RECONNECTING");
+
+            EnsureTurnTimer();
+            if (_timerTrack == null) return;
+
+            var seconds = match.OnlineSecondsRemaining;
+            var progress = match.OnlineTurnProgress;
+            var show = !over && match.OnlineConnected && seconds >= 0 && progress >= 0f;
+            if (_timerTrack.gameObject.activeSelf != show) _timerTrack.gameObject.SetActive(show);
+            if (_timerCount.gameObject.activeSelf != show) _timerCount.gameObject.SetActive(show);
+            if (!show) return;
+
+            _timerFill.fillAmount = progress;
+            // Gold while there is room, amber at ten, red at five, and a pulse under
+            // five so it registers peripherally while the player is reading cards.
+            var colour = seconds > 10 ? TimerCalm : seconds > 5 ? TimerWarning
+                : Color.Lerp(TimerUrgent, Color.white, Mathf.PingPong(Time.unscaledTime * 3.5f, 1f) * 0.45f);
+            _timerFill.color = colour;
+            _timerCount.color = colour;
+            _timerCount.text = seconds + "s";
         }
 
         private void ShowActionInfo(ActionKind kind)

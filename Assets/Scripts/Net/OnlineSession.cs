@@ -22,7 +22,10 @@ namespace Coup.Game
         private TMPro.TMP_Text _message;
         private bool _disposed, _connecting, _ready, _sending, _terminal;
         private string _code, _token;
-        private float _deadlineAt = -1;
+        private float _deadlineAt = -1, _windowSeconds = -1;
+        /// <summary>How much of this turn's clock is left, 0..1, or -1 when there is no clock.</summary>
+        public float TurnProgress => _deadlineAt < 0 || _windowSeconds <= 0 ? -1f
+            : Mathf.Clamp01((_deadlineAt - Time.realtimeSinceStartup) / _windowSeconds);
         public int SecondsRemaining => _deadlineAt < 0 ? -1 : Mathf.Max(0, Mathf.CeilToInt(_deadlineAt - Time.realtimeSinceStartup));
         private JsonValue _lobby;
         public bool Connected => _ready && _socket.IsOpen;
@@ -113,7 +116,17 @@ namespace Coup.Game
                 case "game:log": _openingLog = payload.Arr("events"); break;
                 case "game:state":
                     var deadline=payload.Get("deadline"); var serverTime=payload.Get("serverTime");
-                    if(deadline?.Type==JsonValue.Kind.Number && serverTime?.Type==JsonValue.Kind.Number) _deadlineAt=Time.realtimeSinceStartup+(float)((deadline.Number-serverTime.Number)/1000);
+                    if(deadline?.Type==JsonValue.Kind.Number && serverTime?.Type==JsonValue.Kind.Number) {
+                        var next=Time.realtimeSinceStartup+(float)((deadline.Number-serverTime.Number)/1000);
+                        // The server sends when the turn ends, never how long it was,
+                        // and the length differs by phase: thirty seconds to act,
+                        // twenty to answer. So the first sight of a new deadline is
+                        // its full length, and a bar has something to drain from.
+                        // The tolerance keeps repeated states for the same deadline
+                        // from re-baselining it to whatever is left.
+                        if(Mathf.Abs(next-_deadlineAt)>0.75f) _windowSeconds=Mathf.Max(1f,next-Time.realtimeSinceStartup);
+                        _deadlineAt=next;
+                    }
                     _ready = true; var log = _openingLog; _openingLog = null;
                     _match.ShowServerState(payload, log); if (_overlay != null) _overlay.SetActive(false); break;
                 case "game:event": _match.ShowServerEvent(payload); break;

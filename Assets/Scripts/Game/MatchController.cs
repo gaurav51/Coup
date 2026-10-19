@@ -74,6 +74,7 @@ namespace Coup.Game
 
         public bool OnlineConnected => _online?.Connected ?? false;
         public int OnlineSecondsRemaining => _online?.SecondsRemaining ?? -1;
+        public float OnlineTurnProgress => _online?.TurnProgress ?? -1f;
         public void ShowNetworkMenu() => _online?.ShowMenu();
 
         public bool IsHumanTurn =>

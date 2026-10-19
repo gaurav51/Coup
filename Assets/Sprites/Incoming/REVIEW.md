@@ -1,3 +1,33 @@
+## 2026-10-20 — Claude: HUD bars hug the screen on tall displays (finished)
+
+Reported at 2960x1440 portrait: the header sat below the top of the screen with
+table art showing above it.
+
+The canvas scaler matches on width against a 1080x1920 reference, so a 2.06
+aspect grows the canvas to 1080x2220 while the Stage stays a fixed 1920 tall,
+centred. That leaves 150 units of slack at each end. TopBar and ActionBar are
+anchored to the Stage, not the canvas, so both sat 150 units inside the screen:
+header 163 from the top, action bar 200 from the bottom.
+
+Both are now placed absolutely against the canvas edge, keeping the inset they
+were authored with (13 and 50).
+
+Absolute rather than nudged, and that distinction mattered. The first version
+added the slack to a cached starting position; something captured an
+already-shifted value and both bars ended up displaced by exactly twice the
+slack. Caught by re-measuring rather than trusting the first reading. The
+current form derives the target only from the canvas and the bar's own height,
+so running it any number of times gives the same answer.
+
+Verified at 1080x2220: header 13 from the top, action bar 50 from the bottom,
+stable across frames with no drift. Opponent seats still inside from the
+earlier fix.
+
+Not exercised: the 1080x1920 reference aspect itself, where slack is zero and
+the method early-returns, so nothing moves by construction.
+
+---
+
 ## 2026-10-20 — Claude: opponent seats no longer hang off the canvas (finished)
 
 Reported on a four-player table: the left and right opponent badges were cut

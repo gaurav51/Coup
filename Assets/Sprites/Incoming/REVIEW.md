@@ -1,3 +1,35 @@
+## 2026-10-20 — Claude: opponent seats no longer hang off the canvas (finished)
+
+Reported on a four-player table: the left and right opponent badges were cut
+off at the screen edges.
+
+`EnsureSeats` restores the authored positions only when there are exactly five
+opponents, the number Game.unity has panels for. Any other count falls back to
+`SeatSpots`, whose numbers were tuned when a seat was a narrow vertical plaque.
+Codex's badge is 420 wide, so the three-opponent row at +-400 and the
+four-opponent row at +-420 both pushed their outer chairs past a 1080 canvas.
+
+Measured, not guessed: at four players the outer seats spanned -572..572
+against a half-width of 540, so 32 units off each side.
+
+The first attempt clamped on the panel's own RectTransform and was not enough —
+the portrait halo is drawn outside the badge on its left, so the rect fitted
+while the art still clipped, and the two outer chairs are not mirror images.
+`KeepSeatOnStage` now measures the union of every active child's world corners
+and shifts the seat by exactly its overflow, leaving a 22px margin.
+
+Authored five-seat positions are deliberately left unclamped: they are placed
+by hand and were verified to fit (-505..481). Those seats overlap heavily in x
+and are separated by y, which a clamp has no business touching.
+
+Verified per player count, one layout per frame because `_layoutSeatCount`
+short-circuits within a frame and a single-frame loop reads stale numbers:
+four players now sit at screen 22..399, 320..725 and 681..1058, symmetric 22px
+margins; five players clamp from +-420 to -348/+375; six players use the
+authored row untouched.
+
+---
+
 ## 2026-10-20 — Claude: queue countdown on the waiting card (finished)
 
 `queueDeadline` was already on the wire from the server change; nothing drew

@@ -568,6 +568,46 @@ namespace Coup.Game.UI
             PlayOpening();
         }
 
+        /// <summary>
+        /// Pulls a seat back inside the table if its spot would hang off the edge.
+        ///
+        /// SeatSpots was tuned when an opponent was a narrow vertical plaque. The
+        /// seat is now a 420 wide badge, so the three- and four-opponent rows put
+        /// their outer chairs about thirty units past a 1080 canvas and clipped the
+        /// portrait. Measuring the panel beats re-tuning those numbers, which would
+        /// only drift again the next time the art changes.
+        ///
+        /// Authored five-seat positions are left alone: those are placed by hand in
+        /// Game.unity and are not guesses.
+        /// </summary>
+        private void KeepSeatOnStage(RectTransform seat)
+        {
+            if (_stage == null || seat == null || !seat.gameObject.activeInHierarchy) return;
+            var edge = _stage.rect.width * 0.5f - 22f;   // a margin that reads as deliberate, not as a near miss
+
+            // Measured from what is drawn, not from the panel's own rect: the
+            // portrait halo hangs outside the badge on its left, so the rect fits
+            // while the art does not, and the two outer chairs are not mirror
+            // images of each other.
+            float min = float.MaxValue, max = float.MinValue;
+            var corners = new Vector3[4];
+            foreach (var child in seat.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (!child.gameObject.activeInHierarchy) continue;
+                child.GetWorldCorners(corners);
+                for (var i = 0; i < 4; i++)
+                {
+                    var x = _stage.InverseTransformPoint(corners[i]).x;
+                    if (x < min) min = x;
+                    if (x > max) max = x;
+                }
+            }
+            if (min > max) return;
+
+            var shift = min < -edge ? -edge - min : max > edge ? edge - max : 0f;
+            if (!Mathf.Approximately(shift, 0f)) seat.anchoredPosition += new Vector2(shift, 0f);
+        }
+
         private void EnsureSeats(CoupGame game)
         {
             if (match == null || _panels.Count == 0) return;
@@ -581,6 +621,13 @@ namespace Coup.Game.UI
                     if(seats.Count==_panels.Count) { rect.anchoredPosition=_authoredSeatPositions[panel];rect.localScale=_authoredSeatScales[panel]; }
                     else { rect.anchoredPosition=spots[index].Position;rect.localScale=Vector3.one*spots[index].Scale; }
                     panel.SetSeatScale(rect.localScale.x);
+                }
+                if (seats.Count != _panels.Count) {
+                    // After the readout has been laid out, so the measurement sees
+                    // where the art actually ended up.
+                    Canvas.ForceUpdateCanvases();
+                    for (var index = 0; index < _panels.Count && index < seats.Count; index++)
+                        KeepSeatOnStage((RectTransform)_panels[index].transform);
                 }
                 _layoutSeatCount=seats.Count;
             }

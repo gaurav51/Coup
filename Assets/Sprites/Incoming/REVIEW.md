@@ -1,3 +1,25 @@
+## 2026-10-19 — Codex: realistic lobby using current game cast (finished)
+
+Latest user direction supersedes the comic exploration: return to realistic rendering and use current in-game cards. Active background is Assets/Sprites/02_Backgrounds/UI_Lobby_CurrentCast_Realistic_v6.png, generated with built-in imagegen from the current Captain, Contessa, Assassin cards and the actual table theme. Prompt: LOBBY_REALISTIC_PROMPT.md. No comic background is active.
+
+The background pedestal is empty in the generated PNG. Hall/CurrentGameCards contains the exact CoupArt.cardFace sprite references for Contessa, Captain, Assassin, layered in Unity. Avatar is a Sprite crop referencing the existing Captain texture directly. Approved character files and prefabs were not overwritten. New generated art contains no text; any card text is from the pre-existing approved sprites.
+
+Lobby now follows the supplied reference hierarchy: profile/coins/gems/settings, Season Pass and Ranked side panels, gold Play, Casual/Ranked, event banner, Collection/Shop/Missions. Header shares one centerline and regular gaps. Chest and crown were reduced and checked: all corners are inside their containers. Rajdhani fonts come from the current CoupArt asset; all visible action labels fit their text bounds after font metric adjustments. Play/Casual start local matches. Collection opens role information; Settings provides audio, friends and rules. New rank/reward/event/shop/currency/profile controls explain that their systems are not available yet; displayed economy/progression values are UI placeholders.
+
+Verified actual card sprite identity for all three roles, icon containment, main navigation/modal callbacks and local scene launch during this session. Native final preview: Assets/Screenshots/Lobby_Current_Cards_Realistic_Final.png (1080x1920). Console: zero errors. Lobby saved via Editor; returned to edit mode with overlays hidden. No multiplayer connection or purchases tested.
+
+---
+
+## 2026-10-19 — Codex: lobby reference polish and working menus (finished)
+
+User authorized direct Unity integration despite the older pasted scope agreement. Retained the existing text-free throne hall and real Play/Friends/This Device flows. Generated new transparent gold Play plaque, thin gold/navy plaque, and an optional reward chest with built-in imagegen. PNGs and LOBBY_PROMPTS.md are in Incoming. The chest is an optional asset, not wired to a nonexistent rewards system.
+
+Integrated trimmed Sprite assets through the Editor; the main gold button preserves its aspect ratio, navy panels use sliced borders. Fixed obscured PLAYER header, tightened the bottom control layout and anchored header/footer groups to screen edges. Scene saved via Unity; no prefabs regenerated. Added Rules, Roles/Court, and Settings sheets. Audio toggle persists its mute setting. Labels remain Cinzel TMP; no baked text. No premium currency, ranked, shop or season functionality added.
+
+Verified in Play mode: Play loads Game; Rules/Court/Friends sheets open, Back and dim close; modal Back receives the UI raycast; audio toggles and restores. Rules and roles report no text overflow. Checked portrait screenshots at 1080x1920 and tall 1440x2960. Console: zero errors. Multiplayer server connection was not tested. Final Lobby scene is saved in edit mode with sheets hidden. Main preview: Assets/Screenshots/Lobby_Final_1080.png.
+
+---
+
 # Art review log
 
 Claude Code appends here after checking each dropped PNG. Codex reads this and
@@ -9,6 +31,24 @@ bottom 28% is clear enough for the TMP text block, and whether any text, number
 or watermark got baked in (automatic reject).
 
 ---
+
+## 2026-10-19 — Lobby chrome matched to the concept
+
+Replaced the flat bars with the concept shapes: marble plaques with a gold rim, a swallowtail Play banner with sparkles, and a thin Court rule with diamond caps. Icons are a card fan, a laurel crown, a key, and a plain gear. The name plate tucks behind the portrait. Checked in the portrait Game view. Console: 0 errors.
+
+## 2026-10-19 — Lobby matched to the throne-hall concept
+
+The first scene pass put a dark band through the courtiers and sat Table and Court on their waists. The band is gone. Table and Court now sit on the marble under the cards, with a card stack and a crown, and the rest of the stack follows: Play, Friends, This Device, The Court, Rules, Roles, Settings. The header is a name plate, a gold coin reading 12, and a gear. Checked in the Game view at portrait size. Console: 0 errors.
+
+## 2026-10-19 — Lobby scene
+
+`Assets/Scenes/Lobby.unity` is the home screen, first in the build list, in front of Game. The throne hall is a text-free plate (`Sprites/02_Backgrounds/UI_Lobby_Hall.jpg`). Labels are Cinzel. Play and This Device load Game offline; checked in Play mode, the match deals and waits for the human (`online=False`, `AwaitingAction`). Friends opens a sheet to host or join with a code, then loads Game online. Return to Lobby on the game-over panel now loads this scene. Court, Rules, Roles and Settings are on the screen and do not navigate yet. Console: 0 errors.
+
+## 2026-10-19 — Lobby concept, throne hall
+
+Second pass after the waiting-room plate. The reference is a bright palace home screen: three courtiers at a round table, cards on a dais, gold PLAY banner, side plaques and a bottom row. Rebuilt in that layout with Coup's cast — Captain left, Contessa on the throne, a black-and-gold court figure right — and the real actions: Friends, This Device, Rules, Roles, Settings. Coin count is 12. No gems, season pass, or ranked tier.
+
+`Assets/Sprites/Incoming/UI_Lobby_Concept_v2.jpg`. Concept only, type is baked in. Do not wire it as a sprite.
 
 ## 2026-10-19 — Lobby concept
 

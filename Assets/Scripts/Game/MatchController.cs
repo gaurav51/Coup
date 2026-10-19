@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Coup.Core;
 using Coup.AI;
 using Coup.Net;
@@ -74,6 +75,15 @@ namespace Coup.Game
 
         public GameView HumanView => Game?.ViewFor(humanSeat);
 
+        private void Awake()
+        {
+            if (!MatchLaunch.Pending) return;
+            MatchLaunch.Consume(out var online, out var autoStart, out var joinCode);
+            playOnline = online;
+            autoStartOnline = autoStart;
+            joinCode = joinCode;
+        }
+
         private void Start()
         {
             if (playOnline) BeginOnline();
@@ -123,7 +133,7 @@ namespace Coup.Game
             StartMatch();
         }
 
-        /// <summary>Leaves the finished table and opens a fresh online lobby.</summary>
+        /// <summary>Leaves the finished table and returns to the lobby scene.</summary>
         public void ReturnToLobby()
         {
             ResetPresentation();
@@ -135,11 +145,7 @@ namespace Coup.Game
             _online?.Dispose();
             _online = null;
             Game = null;
-            playOnline = true;
-            joinCode = "";
-            autoStartOnline = false;
-            StateChanged?.Invoke();
-            BeginOnline();
+            SceneManager.LoadScene(MatchLaunch.LobbyScene);
         }
 
         public void ShowServerState(JsonValue state, List<JsonValue> openingLog)

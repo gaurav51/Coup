@@ -37,7 +37,7 @@ export function api(platform) {
       else if (/^\/v1\/auth\/link\/(apple|google)$/.test(path) && method === "POST") result = await platform.accounts.social(path.split("/").at(-1), body, (await auth()).accountId);
       else {
         const user = await auth(); const id = user.accountId;
-        if (path === "/v1/auth/logout" && method === "POST") { await platform.store.collection("sessions").deleteOne({ _id: user.sessionId }); result = {}; }
+        if (path === "/v1/auth/logout" && method === "POST") { await platform.store.collection("sessions").deleteOne({ _id: user.sessionId }); platform.accounts.forget(user.sessionId); result = {}; }
         else if (path === "/v1/profile" && method === "GET") result = { profile: await platform.accounts.profile(id) };
         else if (path === "/v1/profile" && method === "PATCH") {
           await platform.store.collection("accounts").updateOne({ _id: id }, { $set: { name: displayName(body.name) } });
@@ -60,6 +60,7 @@ export function api(platform) {
             }, { session, arrayFilters: [{ "p.accountId": id }] });
             await platform.store.collection("matches").updateMany({ winner: id }, { $set: { winner: null } }, { session });
           });
+          platform.accounts.forgetAccount(id);
           result = {};
         }
         else if (path === "/v1/friends" && method === "GET") {

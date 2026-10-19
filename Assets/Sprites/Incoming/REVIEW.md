@@ -1,3 +1,28 @@
+## 2026-10-19 — Claude: session cache for per-packet authentication (finished)
+
+The socket middleware authenticates every packet, so a burst of commands was a
+session read each. `Accounts.authenticate` now holds a verified session for five
+seconds: twenty calls cost one read, asserted in the test rather than assumed.
+
+The cache is the only thing between a revoked session and continued access, so
+it is deliberately short and every revocation this process performs evicts the
+entry outright — logout and account deletion in `http.js`, and the reuse
+revocation in `refresh`. Those stay immediate; the window only bounds a
+revocation performed by some *other* worker. Failures are never cached, and an
+entry never outlives the token that proved it. The map is capped at 20,000,
+evicting expired entries first and then the oldest insertion.
+
+Backend suite 55/55, up one. The new test proves the read actually disappears,
+then pins the tradeoff: a row deleted behind the cache's back is still served
+inside the window, `forget` takes effect immediately, the window closes on its
+own, and a replayed refresh token cannot ride the cache.
+
+Not done: the running `com.coup.local-backend` service still has the previous
+code. It needs a restart to pick this up; I did not restart a managed service
+I did not install.
+
+---
+
 ## 2026-10-19 — Claude: refresh-token reuse detection (finished)
 
 Rotation alone only refused a replayed refresh token: the thief learned their

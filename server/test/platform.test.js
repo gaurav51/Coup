@@ -50,6 +50,48 @@ test("a replayed refresh token revokes its own session and leaves other sessions
   assert.ok(await accounts.refresh(victim));
 });
 
+test("a verified session is cached briefly, and revocations made here are immediate", async () => {
+  const a = await accounts.guest("Cached");
+
+  // Prove the cache removes reads rather than merely behaving the same.
+  const real = store.collection.bind(store);
+  let reads = 0;
+  store.collection = (name) => {
+    const collection = real(name);
+    if (name !== "sessions") return collection;
+    const find = collection.findOne.bind(collection);
+    collection.findOne = (...args) => { reads++; return find(...args); };
+    return collection;
+  };
+  try {
+    for (let i = 0; i < 20; i++) await accounts.authenticate(a.accessToken);
+    assert.equal(reads, 1, "twenty packets should cost one session read, not twenty");
+  } finally { store.collection = real; }
+
+  // The window is what bounds a revocation made by some other worker: delete the
+  // row behind the cache's back and this process still serves it for now.
+  await store.collection("sessions").deleteOne({ _id: a.sessionId });
+  assert.equal((await accounts.authenticate(a.accessToken)).accountId, a.accountId);
+
+  // A revocation this process performs is not delayed at all.
+  accounts.forget(a.sessionId);
+  await assert.rejects(accounts.authenticate(a.accessToken), /expired/);
+
+  // And the window closes on its own.
+  const b = await accounts.guest("Expiring");
+  await accounts.authenticate(b.accessToken);
+  await store.collection("sessions").deleteOne({ _id: b.sessionId });
+  accounts.verified.get(b.sessionId).until = Date.now() - 1;
+  await assert.rejects(accounts.authenticate(b.accessToken), /expired/);
+
+  // Reuse revocation evicts too, so a replayed token cannot ride the cache.
+  const c = await accounts.guest("Replayer");
+  await accounts.refresh(c);
+  await accounts.authenticate(c.accessToken);
+  await assert.rejects(accounts.refresh(c), /reused/);
+  await assert.rejects(accounts.authenticate(c.accessToken), /expired/);
+});
+
 test("provider challenges cannot be replayed and linked identities cannot be stolen", async () => {
   let nonce;
   const social = new Accounts(store, { secret: "test-only-secret-with-more-than-32-characters", verifyIdentity: async () => ({ sub: "google-user-123", nonce }) });

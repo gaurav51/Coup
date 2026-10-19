@@ -8,6 +8,18 @@ const ACCESS_SECONDS = 900;
 const SESSION_MS = 30 * 86400000;
 /** How many retired refresh hashes a session remembers for reuse detection. */
 const REUSE_HISTORY = 10;
+/**
+ * The socket middleware authenticates every packet, which was a session lookup
+ * per command. A verified session is held this long so a burst of commands costs
+ * one read instead of one each.
+ *
+ * This is the only thing standing between a revoked session and continued access,
+ * so it is deliberately short, and every revocation this process performs evicts
+ * the entry outright — logout and account deletion are immediate, not eventual.
+ * The window only bounds revocations done by some *other* worker.
+ */
+const SESSION_CACHE_MS = 5000;
+const SESSION_CACHE_MAX = 20000;
 
 export class Accounts {
   constructor(store, { secret, appleAudience, googleAudiences = [], verifyIdentity } = {}) {
@@ -21,6 +33,7 @@ export class Accounts {
       apple: createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys")),
       google: createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs")),
     };
+    this.verified = new Map();
   }
 
   newAccount(name) {
@@ -54,10 +67,36 @@ export class Accounts {
   async authenticate(token) {
     try {
       const { payload } = await jwtVerify(token ?? "", this.key, { algorithms: ["HS256"], issuer: "coup", audience: "coup-client" });
+      const user = { accountId: payload.sub, sessionId: payload.sid, expiresAt: payload.exp * 1000 };
+      const now = Date.now();
+      const seen = this.verified.get(payload.sid);
+      if (seen && seen.until > now && seen.accountId === payload.sub) return user;
+
       const row = await this.store.collection("sessions").findOne({ _id: payload.sid, accountId: payload.sub, expiresAt: { $gt: new Date() } });
       requireValue(row, 401, "Session expired. Sign in again.");
-      return { accountId: payload.sub, sessionId: payload.sid, expiresAt: payload.exp * 1000 };
+      // Never hold a session past the life of the token that proved it. Failures
+      // are not cached: they are rare, and a stale "no" is worse than a re-read.
+      this.remember(payload.sid, payload.sub, Math.min(now + SESSION_CACHE_MS, user.expiresAt));
+      return user;
     } catch { throw new ApiError(401, "Session expired. Sign in again."); }
+  }
+
+  remember(sessionId, accountId, until) {
+    if (until <= Date.now()) return;
+    if (this.verified.size >= SESSION_CACHE_MAX) {
+      const now = Date.now();
+      for (const [key, value] of this.verified) if (value.until <= now) this.verified.delete(key);
+      // Still full: drop the oldest insertion rather than letting this grow.
+      if (this.verified.size >= SESSION_CACHE_MAX) this.verified.delete(this.verified.keys().next().value);
+    }
+    this.verified.set(sessionId, { accountId, until });
+  }
+
+  /** Call whenever this process revokes a session, so the change is not delayed. */
+  forget(sessionId) { this.verified.delete(sessionId); }
+
+  forgetAccount(accountId) {
+    for (const [key, value] of this.verified) if (value.accountId === accountId) this.verified.delete(key);
   }
 
   /**
@@ -86,6 +125,7 @@ export class Accounts {
     if (row) return { ...(await this.tokens(row)), refreshToken: next };
 
     const replayed = await sessions.findOneAndDelete({ _id: sessionId, spentHashes: presented });
+    if (replayed) this.forget(sessionId);
     requireValue(!replayed, 401, "This session was signed out because its credentials were reused. Sign in again.");
     throw new ApiError(401, "Session expired. Sign in again.");
   }

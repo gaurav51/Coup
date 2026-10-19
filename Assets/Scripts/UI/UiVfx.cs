@@ -641,7 +641,9 @@ namespace Coup.Game.UI
             });
         }
 
-        private void OnDisable()
+        private void OnDisable() => ClearTransient();
+
+        public void ClearTransient()
         {
             StopAllCoroutines();
             _coupActive = false;

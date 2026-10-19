@@ -28,7 +28,7 @@ namespace Coup.Game
 
         [Header("Online")]
         public bool playOnline = true;
-        public string serverUrl = "http://localhost:3000";
+        public string serverUrl = PlatformClient.DefaultUrl;
         public string onlineName = "You";
         public string joinCode = "";
         public bool autoStartOnline = true;
@@ -40,6 +40,9 @@ namespace Coup.Game
 
         /// <summary>Raised per rules event, for the log and animations.</summary>
         public event Action<GameEvent> EventOccurred;
+
+        /// <summary>Authoritative history replacement; no historical action VFX are replayed.</summary>
+        public event Action<IReadOnlyList<GameEvent>> HistoryRestored;
 
         private GameDriver _driver;
         private bool _humanActed;
@@ -69,6 +72,10 @@ namespace Coup.Game
         private OnlineSession _online;
         private int _lastServerEvent;
 
+        public bool OnlineConnected => _online?.Connected ?? false;
+        public int OnlineSecondsRemaining => _online?.SecondsRemaining ?? -1;
+        public void ShowNetworkMenu() => _online?.ShowMenu();
+
         public bool IsHumanTurn =>
             Game != null && Game.Phase != GamePhase.GameOver &&
             _driver != null && _driver.SeatToAct() == humanSeat;
@@ -81,7 +88,7 @@ namespace Coup.Game
             MatchLaunch.Consume(out var online, out var autoStart, out var joinCode);
             playOnline = online;
             autoStartOnline = autoStart;
-            joinCode = joinCode;
+            this.joinCode = joinCode;
         }
 
         private void Start()
@@ -92,6 +99,8 @@ namespace Coup.Game
 
         private void Update() => _online?.Pump();
 
+        private void OnApplicationPause(bool paused) { if (!paused) _online?.CheckConnection(); }
+
         private void OnDestroy()
         {
             _online?.Dispose();
@@ -101,6 +110,7 @@ namespace Coup.Game
         private void BeginOnline()
         {
             _online?.Dispose();
+            serverUrl = PlatformClient.Instance.BaseUrl;
             _online = new OnlineSession(this);
             _online.Begin();
         }
@@ -151,6 +161,7 @@ namespace Coup.Game
         public void ShowServerState(JsonValue state, List<JsonValue> openingLog)
         {
             if (state == null) return;
+            if (openingLog != null) ResetPresentation();
             // The board updates after the events that caused it, so a challenge
             // can finish before the cards and coins jump to the result.
             Enqueue(new Beat { ApplyState = true, State = state, Log = openingLog });
@@ -165,7 +176,7 @@ namespace Coup.Game
             Enqueue(new Beat { HasEvent = true, Event = RemoteTable.ReadEvent(payload) });
         }
 
-        private void ApplyServerState(JsonValue state)
+        private void ApplyServerState(JsonValue state, List<GameEvent> history = null)
         {
             if (state == null) return;
             var view = RemoteTable.Read(state);
@@ -178,6 +189,7 @@ namespace Coup.Game
             else
                 Game.Apply(view);
 
+            if (history != null) HistoryRestored?.Invoke(history);
             StateChanged?.Invoke();
         }
 
@@ -255,20 +267,15 @@ namespace Coup.Game
 
                 if (!beat.ApplyState) continue;
 
-                ApplyServerState(beat.State);
-                var log = beat.Log;
-                if (log == null || log.Count == 0) continue;
-
-                // A resumed seat already lived these events. Replay the log, but
-                // don't make the player watch the whole match again.
-                var instant = log.Count > 4;
-                for (var i = 0; i < log.Count; i++)
-                {
-                    var replay = RemoteTable.ReadEvent(log[i]);
-                    EventOccurred?.Invoke(replay);
-                    var hold = HoldSeconds(replay, instant);
-                    if (hold > 0f) yield return new WaitForSecondsRealtime(hold);
+                List<GameEvent> history = null;
+                if (beat.Log != null) {
+                    history = new List<GameEvent>();
+                    foreach (var payload in beat.Log) {
+                        history.Add(RemoteTable.ReadEvent(payload));
+                        _lastServerEvent = Math.Max(_lastServerEvent, RemoteTable.Sequence(payload));
+                    }
                 }
+                ApplyServerState(beat.State, history);
             }
 
             Presenting = false;

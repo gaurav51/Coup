@@ -900,6 +900,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7be91d90357524f4986b73cf7d572206, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Coup.Game.UI.LobbyScreen
+  art: {fileID: 11400000, guid: f22582f172fc7445885ef26efff7d21f, type: 2}
 --- !u!1 &155189373
 GameObject:
   m_ObjectHideFlags: 0

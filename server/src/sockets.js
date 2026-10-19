@@ -1,23 +1,61 @@
 import { isRejection } from "./errors.js";
 import { Client, Server } from "./protocol.js";
 import { RoomStore, parseCommand } from "./rooms.js";
-import { scheduleBots } from "./bots.js";
+import { scheduleBots, cancelBots } from "./bots.js";
+import { RateLimit } from "./platform/rate-limit.js";
 
 export function channel(code) {
   return `table:${code}`;
 }
 
 export function attachSockets(io, store = new RoomStore()) {
+  const sweep = setInterval(async () => {
+    for (const room of [...store.rooms.values()]) {
+      if (!room.game || room.game.phase === "GameOver" || !room.deadline || room.deadline > Date.now()) continue;
+      try {
+        const result = await store.timeout(room.code);
+        if (result) pushMatch(io, store, result);
+      } catch (err) { console.error("[coup] deadline commit failed", err.name); }
+    }
+  }, 1000);
+  sweep.unref();
+  io.engine.once("close", () => { clearInterval(sweep); for (const code of store.rooms.keys()) cancelBots(code); });
+  for (const room of store.rooms.values()) scheduleBots(store, room.code, result => pushMatch(io, store, result));
   io.on("connection", (socket) => {
+    const limits = new RateLimit({ capacity: 30, refillPerSecond: 5, maxKeys: 1 });
+    socket.use((packet, next) => {
+      if (limits.take("commands")) return next();
+      const ack = packet.at(-1);
+      if (typeof ack === "function") ack({ ok: false, error: "Slow down and try again." });
+      socket.emit(Server.REJECTED, { message: "Slow down and try again." });
+    });
     socket.onAny((event, ...args) => {
       const data = args.filter((item) => typeof item !== "function");
       logJson("<-", event, data.length === 1 ? data[0] : data);
     });
 
-    socket.on(Client.CREATE, (payload, ack) => {
+    socket.on("queue:join", async (payload, ack) => {
       const [data, done] = normalize(payload, ack);
       try {
-        const result = store.create({ name: data.name, socketId: socket.id });
+        const result = await store.quickJoin({ accountId: socket.data.accountId, socketId: socket.id, name: data.name, mode: data.mode });
+        bind(socket, result);
+        if (result.kind === "lobby") pushLobby(io, result.recipients); else pushMatch(io, store, result);
+        done({ ok: true, code: result.code, token: result.token, seat: result.seat });
+      } catch (err) { fail(socket, done, err); }
+    });
+    socket.on("session:recover", async (payload, ack) => {
+      const [, done] = normalize(payload, ack);
+      try {
+        const result = await store.recover({ accountId: socket.data.accountId, socketId: socket.id });
+        retire(io, result.replacedSocketId, result.code); bind(socket, result);
+        if (result.kind === "lobby") pushLobby(io, result.recipients); else pushMatch(io, store, result);
+        done({ ok: true, code: result.code, token: result.token, seat: result.seat });
+      } catch (err) { fail(socket, done, err); }
+    });
+    socket.on(Client.CREATE, async (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try {
+        const result = await store.create({ name: data.name, socketId: socket.id, accountId: socket.data.accountId });
         bind(socket, result);
         pushLobby(io, result.recipients);
         console.log(`[coup ${result.code}] ${seatName(store, result)} created the table`);
@@ -27,10 +65,10 @@ export function attachSockets(io, store = new RoomStore()) {
       }
     });
 
-    socket.on(Client.JOIN, (payload, ack) => {
+    socket.on(Client.JOIN, async (payload, ack) => {
       const [data, done] = normalize(payload, ack);
       try {
-        const result = store.join({ code: data.code, name: data.name, socketId: socket.id });
+        const result = await store.join({ code: data.code, name: data.name, socketId: socket.id, accountId: socket.data.accountId });
         bind(socket, result);
         pushLobby(io, result.recipients);
         console.log(`[coup ${result.code}] ${seatName(store, result)} joined`);
@@ -40,11 +78,11 @@ export function attachSockets(io, store = new RoomStore()) {
       }
     });
 
-    socket.on(Client.LEAVE, (payload, ack) => {
+    socket.on(Client.LEAVE, async (payload, ack) => {
       const [, done] = normalize(payload, ack);
       try {
         const code = socket.data.code;
-        const result = store.leave(socket.id);
+        const result = await store.leave(socket.id);
         unbind(socket);
         if (result.kind === "lobby") pushLobby(io, result.recipients);
         else pushMatch(io, store, result);
@@ -55,10 +93,10 @@ export function attachSockets(io, store = new RoomStore()) {
       }
     });
 
-    socket.on(Client.READY, (payload, ack) => {
+    socket.on(Client.READY, async (payload, ack) => {
       const [data, done] = normalize(payload, ack);
       try {
-        const result = store.setReady(socket.id, data.ready);
+        const result = await store.setReady(socket.id, data.ready);
         pushLobby(io, result.recipients);
         const ready = store.peek(result.code)?.players.find((seat) => seat.socketId === socket.id);
         console.log(`[coup ${result.code}] ${ready?.name ?? "a player"} is ${ready?.ready ? "ready" : "not ready"}`);
@@ -68,30 +106,29 @@ export function attachSockets(io, store = new RoomStore()) {
       }
     });
 
-    socket.on(Client.START, (payload, ack) => {
+    socket.on(Client.START, async (payload, ack) => {
       const [data, done] = normalize(payload, ack);
       try {
-        const seed = data.seed == null || data.seed === "" ? undefined : Number(data.seed);
         const bots = Number(data.bots);
-        const result = store.start(
+        const result = await store.start(
           socket.id,
-          Number.isInteger(seed) ? seed : undefined,
+          undefined,
           Number.isInteger(bots) ? bots : 0,
         );
         const room = store.peek(result.code);
         const names = room.players.map((seat) => (seat.bot ? `${seat.name} (bot)` : seat.name)).join(", ");
         console.log(`[coup ${result.code}] started: ${names}`);
         pushMatch(io, store, result);
-        done({ ok: true, code: result.code, seed: room.seed ?? null });
+        done({ ok: true, code: result.code });
       } catch (err) {
         fail(socket, done, err);
       }
     });
 
-    socket.on(Client.RESUME, (payload, ack) => {
+    socket.on(Client.RESUME, async (payload, ack) => {
       const [data, done] = normalize(payload, ack);
       try {
-        const result = store.resume({ code: data.code, token: data.token, socketId: socket.id });
+        const result = await store.resume({ code: data.code, token: data.token, socketId: socket.id, accountId: socket.data.accountId });
         retire(io, result.replacedSocketId, result.code);
         bind(socket, result);
         console.log(`[coup ${result.code}] ${seatName(store, result)} resumed`);
@@ -111,10 +148,10 @@ export function attachSockets(io, store = new RoomStore()) {
       [Client.LOSE, "lose"],
       [Client.EXCHANGE, "exchange"],
     ]) {
-      socket.on(event, (payload, ack) => {
+      socket.on(event, async (payload, ack) => {
         const [data, done] = normalize(payload, ack);
         try {
-          const result = store.act(socket.id, parseCommand(type, data));
+          const result = await store.act(socket.id, parseCommand(type, data));
           pushMatch(io, store, result);
           done({ ok: true });
         } catch (err) {
@@ -123,9 +160,11 @@ export function attachSockets(io, store = new RoomStore()) {
       });
     }
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       const code = socket.data.code;
-      const result = store.disconnect(socket.id);
+      let result;
+      try { result = await store.disconnect(socket.id); }
+      catch (err) { console.error("[coup] disconnect checkpoint failed", err.name); return; }
       if (!result) return;
       if (code) console.log(`[coup ${code}] a player disconnected`);
       if (result.kind === "lobby") pushLobby(io, result.recipients);
@@ -208,7 +247,8 @@ function emit(target, event, payload) {
 }
 
 function logJson(direction, event, payload) {
-  console.log(`[coup ${direction}] ${event} ${JSON.stringify(payload ?? null)}`);
+  // Payloads contain bearer tokens, hands and exchange pools. Never log them.
+  if (process.env.LOG_EVENTS === "1") console.log(`[coup ${direction}] ${event}`);
 }
 
 function seatName(store, result) {

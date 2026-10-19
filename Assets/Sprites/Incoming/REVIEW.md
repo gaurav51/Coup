@@ -1,3 +1,19 @@
+## 2026-10-19 — Codex: Mac backend hosting (hosting finished; game platform still in progress)
+
+Configured authenticated MongoDB backend on loopback 3001, persistent single-member MongoDB 8.0.17 replica set on loopback 27017, and stable ngrok HTTPS ingress at https://curable-twistable-rising.ngrok-free.dev. ngrok credentials were configured by the user; no token copied into source or this log. Request inspection disabled. Generated signing secret is in ignored .env.local (0600); persistent database/logs are in ignored .data (0700). Installed macOS login service com.coup.local-backend to start/restart the stack. Mac must stay awake and online. Existing legacy process on 3000 is not the ngrok upstream.
+
+Verified 49 server tests; actual HTTPS and WSS guest authentication, invalid-token rejection, token refresh, starting a bot match, disconnect/resume with same private hand, and logout revocation. Restarted the managed stack and verified account/session persistence. Added hosting/check/install scripts, /ready lease+database check, and README instructions. No Unity scene/prefab changes in this hosting pass.
+
+Not complete: Unity auth/reconnect integration and account/store screens, public matchmaking, production multiworker routing, configured Apple/Google app credentials/products, live provider and IAP tests, refund notification ingestion. This is Mac internet testing, not a production HA deployment or an AWS deployment.
+
+---
+
+## 2026-10-19 — Codex: header alignment correction (finished)
+
+Header only: uniform 80px profile/currency/settings frames, equal 35px gaps, consistent icon/value/plus columns, inset smaller gem and coin, aligned profile left edges, raised level/progress baseline. Background and lower lobby unchanged. Checked native Play screenshot Assets/Screenshots/Lobby_Header_Aligned_Final.png and console (zero errors). Saved through Editor, returned to edit mode.
+
+---
+
 ## 2026-10-19 — Codex: realistic lobby using current game cast (finished)
 
 Latest user direction supersedes the comic exploration: return to realistic rendering and use current in-game cards. Active background is Assets/Sprites/02_Backgrounds/UI_Lobby_CurrentCast_Realistic_v6.png, generated with built-in imagegen from the current Captain, Contessa, Assassin cards and the actual table theme. Prompt: LOBBY_REALISTIC_PROMPT.md. No comic background is active.

@@ -29,7 +29,7 @@ import {
  * Hidden cards stay on the player objects; the room layer decides what a socket may see.
  */
 export class CoupGame {
-  constructor(playerNames, seed = 1) {
+  constructor(playerNames, seed) {
     if (!Array.isArray(playerNames) || playerNames.length < MIN_PLAYERS) {
       throw new GameError("Coup needs at least two players.");
     }
@@ -64,6 +64,27 @@ export class CoupGame {
 
   get deckCount() {
     return this.deck.count;
+  }
+
+  /** Private durable state. Never send this object to a client. */
+  snapshot() {
+    const { deck, players, responders, ...state } = this;
+    return {
+      version: 1,
+      state: structuredClone(state),
+      deck: deck.snapshot(),
+      players: players.map((player) => ({ ...player, influence: [...player.influence], revealed: [...player.revealed] })),
+      responders: [...responders],
+    };
+  }
+
+  static restore(saved) {
+    if (saved?.version !== 1) throw new GameError("Unsupported saved match version.");
+    const game = Object.assign(Object.create(CoupGame.prototype), structuredClone(saved.state));
+    game.deck = Deck.restore(saved.deck);
+    game.players = saved.players.map((player) => Object.assign(Object.create(Player.prototype), structuredClone(player)));
+    game.responders = new Set(saved.responders);
+    return game;
   }
 
   get actingPlayerIndex() {

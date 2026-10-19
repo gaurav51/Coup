@@ -42,6 +42,9 @@ namespace Coup.Game.UI
         private RectTransform _stage;
         private RectTransform _hudRect;
         private readonly List<PlayerPanelView> _panels = new();
+        private readonly Dictionary<PlayerPanelView, Vector2> _authoredSeatPositions = new();
+        private readonly Dictionary<PlayerPanelView, Vector3> _authoredSeatScales = new();
+        private int _layoutSeatCount = -1;
         private readonly Dictionary<ActionKind, ActionButtonView> _actions = new();
         private readonly List<CardView> _hand = new();
         private readonly Dictionary<int, Role> _lastClaim = new();
@@ -64,6 +67,7 @@ namespace Coup.Game.UI
         private RectTransform _discardCaption;
         private RectTransform _hudCoinIcon;
         private bool _openingPlayed;
+        private CoupGame _historyGame;
         private TextMeshProUGUI _deckCount;
         private TextMeshProUGUI _discardCount;
         private CardView _discardTopCard;
@@ -101,8 +105,10 @@ namespace Coup.Game.UI
             {
                 match.StateChanged -= Refresh;
                 match.EventOccurred -= OnEvent;
+                match.HistoryRestored -= OnHistoryRestored;
                 match.StateChanged += Refresh;
                 match.EventOccurred += OnEvent;
+                match.HistoryRestored += OnHistoryRestored;
             }
         }
 
@@ -111,6 +117,7 @@ namespace Coup.Game.UI
             if (match == null) return;
             match.StateChanged -= Refresh;
             match.EventOccurred -= OnEvent;
+            match.HistoryRestored -= OnHistoryRestored;
         }
 
         /// <summary>
@@ -565,6 +572,18 @@ namespace Coup.Game.UI
         {
             if (match == null || _panels.Count == 0) return;
             var seats = Enumerable.Range(0, game.Players.Count).Where(i => i != match.humanSeat).ToList();
+            if (_layoutSeatCount != seats.Count) {
+                var spots=SeatSpots(seats.Count);
+                for(var index=0;index<_panels.Count;index++) {
+                    var panel=_panels[index]; var rect=(RectTransform)panel.transform;
+                    if(!_authoredSeatPositions.ContainsKey(panel)) { _authoredSeatPositions[panel]=rect.anchoredPosition;_authoredSeatScales[panel]=rect.localScale; }
+                    if(index>=seats.Count)continue;
+                    if(seats.Count==_panels.Count) { rect.anchoredPosition=_authoredSeatPositions[panel];rect.localScale=_authoredSeatScales[panel]; }
+                    else { rect.anchoredPosition=spots[index].Position;rect.localScale=Vector3.one*spots[index].Scale; }
+                    panel.SetSeatScale(rect.localScale.x);
+                }
+                _layoutSeatCount=seats.Count;
+            }
             for (var i = 0; i < _panels.Count; i++)
             {
                 var panel = _panels[i];
@@ -585,6 +604,7 @@ namespace Coup.Game.UI
 
             foreach (var panel in _panels)
             {
+                if (!panel.gameObject.activeSelf || panel.Seat < 0 || panel.Seat >= game.Players.Count) continue;
                 var player = game.Players[panel.Seat];
                 var targetable = _awaitingTarget.HasValue &&
                                  game.CanDeclare(match.humanSeat, _awaitingTarget.Value, panel.Seat);
@@ -1061,11 +1081,18 @@ namespace Coup.Game.UI
             _ => ""
         };
 
-        private void ShowSettings() =>
+        private void ShowSettings() {
+            if (match != null && match.playOnline) { match.ShowNetworkMenu(); return; }
             _modal.ShowInfo("Match",
                 $"Seats: {match.playerCount}\nYou are seat {match.humanSeat + 1}.\n\n" +
                 "Lose both cards and you are out. Last player standing wins.\n\n" +
                 "Any claim can be called a bluff. If they really have the card, you lose one. If they were lying, they lose one.");
+        }
+
+        private void Update() {
+            if (match == null || !match.playOnline || match.Game == null || _turnText == null) return;
+            _turnText.text = match.Game.Phase == GamePhase.GameOver ? "GAME OVER" : "TURN " + match.Game.TurnNumber + (match.OnlineConnected ? "  ·  " + match.OnlineSecondsRemaining + "s" : "  ·  RECONNECTING");
+        }
 
         private void ShowActionInfo(ActionKind kind)
         {
@@ -1197,6 +1224,21 @@ namespace Coup.Game.UI
         }
 
         // -------------------------------------------------------------------- log
+
+        private void OnHistoryRestored(IReadOnlyList<GameEvent> history) {
+            _vfx?.ClearTransient();
+            _gameOver?.HideImmediate();
+            _log.Clear();_lastClaim.Clear();_lastDeed.Clear();_lastDiscardRole=null;
+            _openingPlayed=(ReferenceEquals(_historyGame,match.Game)&&_openingPlayed)||history.Count>4;
+            _historyGame=match.Game;
+            foreach(var e in history) {
+                if(e.Kind==GameEventKind.InfluenceLost && e.Role.HasValue)_lastDiscardRole=e.Role;
+                TrackClaims(e);var line=Describe(e);if(!string.IsNullOrEmpty(line))_log.Add(line);
+            }
+            while(_log.Count>3)_log.RemoveAt(0);
+            if(_logText!=null)_logText.text=string.Join("\n",_log);
+            if(match?.Game?.Phase==GamePhase.GameOver && match.Game.Winner!=null)ShowGameOver(match.Game.Winner.Index);
+        }
 
         private void OnEvent(GameEvent e)
         {
@@ -1592,7 +1634,7 @@ namespace Coup.Game.UI
 
         private void ShowGameOver(int winnerSeat)
         {
-            if (this == null || _gameOver == null || match?.Game == null) return;
+            if (this == null || _gameOver == null || match?.Game == null || match.Game.Phase != GamePhase.GameOver) return;
             var winner = match.Game.Players.FirstOrDefault(player => player.Index == winnerSeat);
             if (winner == null) return;
 

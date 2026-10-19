@@ -33,7 +33,7 @@ export const protocolDocument = {
     "lobby:join": { code: "string", name: "string" },
     "lobby:leave": {},
     "lobby:ready": { ready: "boolean, omitted toggles" },
-    "lobby:start": { seed: "optional integer, reproducible deals" },
+    "lobby:start": { bots: "optional integer, private tables only" },
     "session:resume": { code: "string", token: "string from the join ack" },
     "game:declare": {
       action: "Income | ForeignAid | Coup | Tax | Steal | Assassinate | Exchange",

@@ -8,6 +8,11 @@ namespace Coup.Game
         public const string GameScene = "Game";
         public const string LobbyScene = "Lobby";
 
+        public static string QueueMode { get; private set; } = "";
+        public static bool ResumeRequested { get; private set; }
+        public static void Queue(string mode) { Host(); QueueMode = mode == "ranked" ? "ranked" : "casual"; }
+        public static void Resume() { Host(); ResumeRequested = true; }
+
         public static bool Pending { get; private set; }
         public static bool Online { get; private set; }
         public static bool AutoStart { get; private set; } = true;
@@ -15,6 +20,8 @@ namespace Coup.Game
 
         public static void Local()
         {
+            QueueMode = "";
+            ResumeRequested = false;
             Pending = true;
             Online = false;
             AutoStart = true;
@@ -23,6 +30,8 @@ namespace Coup.Game
 
         public static void Host()
         {
+            QueueMode = "";
+            ResumeRequested = false;
             Pending = true;
             Online = true;
             AutoStart = false;
@@ -31,6 +40,8 @@ namespace Coup.Game
 
         public static void Join(string code)
         {
+            QueueMode = "";
+            ResumeRequested = false;
             Pending = true;
             Online = true;
             AutoStart = true;

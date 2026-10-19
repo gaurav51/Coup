@@ -109,7 +109,10 @@ namespace Coup.Net
                             case '\n': builder.Append("\\n"); break;
                             case '\r': builder.Append("\\r"); break;
                             case '\t': builder.Append("\\t"); break;
-                            default: builder.Append(c); break;
+                            default:
+                                if (c < 0x20) builder.Append("\\u" + ((int)c).ToString("x4"));
+                                else builder.Append(c);
+                                break;
                         }
                     }
                     builder.Append('"');
@@ -238,6 +241,7 @@ namespace Coup.Net
                     if (c == '"') return builder.ToString();
                     if (c != '\\')
                     {
+                        if (c < 0x20) throw new FormatException("Unescaped control character.");
                         builder.Append(c);
                         continue;
                     }

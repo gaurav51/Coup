@@ -86,7 +86,7 @@ function keepFits(game, keep) {
   return true;
 }
 
-function fallback(game, seat) {
+export function fallback(game, seat) {
   if (game.phase === "AwaitingAction") {
     const legal = game.legalActions(seat);
     const choice = legal.find((item) => item.action === "Income") ?? legal[0];
@@ -125,7 +125,9 @@ export function scheduleBots(store, code, deliver, events = []) {
       return;
     }
     try {
-      deliver(store.actSeat(code, actor, command));
+      const result = store.actSeat(code, actor, command);
+      if (result?.then) result.then(deliver).catch((err) => console.error("[coup] bot commit failed", err.name));
+      else deliver(result);
     } catch (err) {
       const plain = fallback(live.game, actor);
       if (!plain || sameCommand(plain, command)) {
@@ -134,7 +136,9 @@ export function scheduleBots(store, code, deliver, events = []) {
       }
       command = plain;
       try {
-        deliver(store.actSeat(code, actor, command));
+        const result = store.actSeat(code, actor, command);
+        if (result?.then) result.then(deliver).catch((err) => console.error("[coup] bot fallback failed", err.name));
+        else deliver(result);
       } catch (again) {
         console.error(again);
         return;
@@ -142,6 +146,12 @@ export function scheduleBots(store, code, deliver, events = []) {
     }
   }, delay);
   timers.set(code, timer);
+}
+
+export function cancelBots(code) {
+  const timer = timers.get(code);
+  if (timer) clearTimeout(timer);
+  timers.delete(code);
 }
 
 function sameCommand(a, b) {

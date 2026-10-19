@@ -1,0 +1,1 @@
+{"name":"Coup.Game.Editor","references":["Coup.Client","Coup.Core","Coup.AI","Unity.TextMeshPro","Unity.ugui","Unity.InputSystem","Unity.RenderPipelines.Universal.Runtime"],"includePlatforms":["Editor"]}

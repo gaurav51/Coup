@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { CoupGame } from "./game.js";
 import { makeRng } from "./deck.js";
 import { RoomError } from "./errors.js";
+import { fallback } from "./bots.js";
 import { PERSONALITIES } from "./bot-mind.js";
 import {
   FORCED_COUP_THRESHOLD,
@@ -26,35 +27,41 @@ export class RoomStore {
     this.rooms = new Map();
   }
 
-  create({ name, socketId }) {
+  create({ name, socketId, accountId = null, mode = "private" }) {
     if (this.findBySocket(socketId)) throw new RoomError("You are already at a table.");
+    if (accountId && this.activeSeat(accountId)) throw new RoomError("Resume or leave your current table first.");
     const cleaned = cleanName(name);
     const room = new Room(uniqueCode(this.rooms));
+    room.mode = mode;
     const player = room.addPlayer(cleaned, socketId);
+    player.accountId = accountId;
     this.rooms.set(room.code, room);
     return this.lobbyResult(room, player);
   }
 
-  join({ code, name, socketId }) {
+  join({ code, name, socketId, accountId = null }) {
     const room = this.requireRoom(code);
     if (room.status !== "lobby") throw new RoomError("That table has already started.");
     if (room.players.length >= MAX_PLAYERS) throw new RoomError("This table is full.");
     if (this.findBySocket(socketId)) throw new RoomError("You are already at a table.");
 
+    if (accountId && this.activeSeat(accountId)) throw new RoomError("Resume or leave your current table first.");
     const cleaned = cleanName(name);
     if (room.players.some((player) => player.name.toLowerCase() === cleaned.toLowerCase())) {
       throw new RoomError("That name is already at the table.");
     }
     const player = room.addPlayer(cleaned, socketId);
+    player.accountId = accountId;
     return this.lobbyResult(room, player);
   }
 
-  leave(socketId) {
+  leave(socketId, abandon = true) {
     const found = this.findBySocket(socketId);
     if (!found) throw new RoomError("You are not at a table.");
     const { room, player } = found;
 
     if (room.status !== "lobby") {
+      if (abandon) player.abandoned = true;
       player.connected = false;
       player.socketId = null;
       return {
@@ -76,13 +83,21 @@ export class RoomStore {
   disconnect(socketId) {
     const found = this.findBySocket(socketId);
     if (!found) return null;
-    return this.leave(socketId);
+    if (this.retainDisconnectedLobbies && found.room.mode === "private" && found.room.status === "lobby") {
+      found.player.connected = false;
+      found.player.socketId = null;
+      return { kind: "lobby", code: found.room.code, recipients: this.lobbyRecipients(found.room) };
+    }
+    return RoomStore.prototype.leave.call(this, socketId, false);
   }
 
-  resume({ code, token, socketId }) {
+  resume({ code, token, socketId, accountId = null }) {
     const room = this.requireRoom(code);
     const player = room.players.find((seat) => seat.token === token);
-    if (!player) throw new RoomError("That seat does not exist.");
+    if (!player || player.abandoned) throw new RoomError("That seat does not exist.");
+    if (player.accountId && player.accountId !== accountId) throw new RoomError("That seat belongs to another account.");
+    const current = this.findBySocket(socketId);
+    if (current && current.player !== player) throw new RoomError("You are already at another seat.");
 
     const replacedSocketId = player.socketId && player.socketId !== socketId ? player.socketId : null;
     for (const other of this.rooms.values()) {
@@ -119,18 +134,22 @@ export class RoomStore {
   start(socketId, seed, botCount = 0) {
     const { room, player } = this.requireLobby(socketId);
     if (player.token !== room.hostToken) throw new RoomError("Only the host can start.");
+    if (room.mode !== "private" && botCount > 0) throw new RoomError("Public matches do not allow bots.");
     this.addBots(room, botCount);
     if (room.players.length < MIN_PLAYERS) throw new RoomError("Coup needs at least two players.");
     if (room.players.some((seat) => !seat.ready)) throw new RoomError("Everyone must be ready.");
     if (room.players.some((seat) => !seat.connected)) throw new RoomError("A player is disconnected.");
 
-    const deal = Number.isInteger(seed) ? seed : crypto.randomInt(1, 2 ** 31 - 1);
+    // Explicit seeds are for direct engine tests only; the network layer never accepts them.
+    const deal = Number.isInteger(seed) ? seed : undefined;
     room.game = new CoupGame(
       room.players.map((seat) => seat.name),
       deal,
     );
+    room.matchId = crypto.randomUUID();
     room.seed = deal;
     room.status = "playing";
+    room.deadline = Date.now() + 30000;
     room.queuedBlock = null;
     for (const seat of room.players) {
       if (!seat.bot) continue;
@@ -149,7 +168,9 @@ export class RoomStore {
 
     const before = room.game.events.length;
     this.apply(room, player.seat, command);
+    player.moves = (player.moves || 0) + 1;
     this.settleQueuedBlock(room);
+    room.deadline = Date.now() + (room.game.phase === "AwaitingAction" ? 30000 : 20000);
     return { kind: "game", ...this.snapshot(room, { from: before }) };
   }
 
@@ -162,6 +183,7 @@ export class RoomStore {
     const before = room.game.events.length;
     this.apply(room, seat, command);
     this.settleQueuedBlock(room);
+    room.deadline = Date.now() + (room.game.phase === "AwaitingAction" ? 30000 : 20000);
     return { kind: "game", ...this.snapshot(room, { from: before }) };
   }
 
@@ -183,6 +205,60 @@ export class RoomStore {
       bot.personality = PERSONALITIES[added % PERSONALITIES.length];
       added += 1;
     }
+  }
+
+  activeSeat(accountId) {
+    if (!accountId) return null;
+    for (const room of this.rooms.values()) {
+      if (room.status === "over") continue;
+      const player = room.players.find(p => p.accountId === accountId && !p.abandoned);
+      if (player) return { code: room.code, token: player.token, status: room.status, mode: room.mode };
+    }
+    return null;
+  }
+
+  recover({ accountId, socketId }) {
+    const seat = this.activeSeat(accountId);
+    if (!seat) throw new RoomError("No active table to resume.");
+    return RoomStore.prototype.resume.call(this, { ...seat, accountId, socketId });
+  }
+
+  quickJoin({ accountId, socketId, name, mode }) {
+    if (!accountId || !["casual", "ranked"].includes(mode)) throw new RoomError("Invalid matchmaking request.");
+    if (this.activeSeat(accountId)) throw new RoomError("Resume or leave your current table first.");
+    const waiting = [...this.rooms.values()].find(r => r.mode === mode && r.status === "lobby" && r.players.length === 1 && r.players[0].connected);
+    let result;
+    if (waiting) {
+      // Public names need not be globally unique; the account owns the seat.
+      let safeName = cleanName(name);
+      if (waiting.players.some(p => p.name.toLowerCase() === safeName.toLowerCase())) safeName = safeName.slice(0, 13) + " II";
+      result = RoomStore.prototype.join.call(this, { code: waiting.code, name: safeName, accountId, socketId });
+    } else result = RoomStore.prototype.create.call(this, { accountId, socketId, name, mode });
+    const room = this.peek(result.code);
+    room.players.find(p => p.socketId === socketId).ready = true;
+    if (room.players.length >= 2) {
+      const host = room.players.find(p => p.token === room.hostToken);
+      const started = RoomStore.prototype.start.call(this, host.socketId, undefined, 0);
+      return { ...started, token: result.token, seat: result.seat };
+    }
+    return this.lobbyResult(room, room.players[0]);
+  }
+
+  timeout(code, now = Date.now()) {
+    const room = this.peek(code);
+    if (!room?.game || room.game.phase === "GameOver" || !room.deadline || room.deadline > now) return null;
+    const game = room.game;
+    let seat = game.phase === "AwaitingAction" ? game.currentPlayerIndex :
+      game.phase === "AwaitingInfluenceLoss" ? game.pendingLoserIndex :
+      game.phase === "AwaitingExchangeSelection" ? game.actingPlayerIndex : [...game.responders].sort((a,b) => a-b)[0];
+    if (seat == null) return null;
+    const command = fallback(game, seat);
+    if (!command) return null;
+    const before = game.events.length;
+    this.apply(room, seat, command);
+    this.settleQueuedBlock(room);
+    room.deadline = now + (game.phase === "AwaitingAction" ? 30000 : 20000);
+    return { kind: "game", ...this.snapshot(room, { from: before }) };
   }
 
   peek(code) {
@@ -286,6 +362,8 @@ export class RoomStore {
       you: seat,
       phase: game.phase,
       turn: game.turnNumber,
+      deadline: room.deadline || null,
+      serverTime: Date.now(),
       currentPlayer: game.currentPlayerIndex,
       deckCount: game.deckCount,
       yourTurn: legalActions.length > 0 || challenge || pass || blocks.length > 0 || lose || exchange != null,
@@ -478,7 +556,7 @@ function parseTarget(value) {
 function cleanName(name) {
   if (typeof name !== "string") throw new RoomError("Enter a name.");
   const cleaned = name.trim().replace(/\s+/g, " ").slice(0, 16);
-  if (!cleaned) throw new RoomError("Enter a name.");
+  if (!cleaned || /[<>\u0000-\u001f\u007f]/.test(cleaned)) throw new RoomError("Enter a valid name without markup.");
   return cleaned;
 }
 
@@ -502,6 +580,9 @@ class Room {
     this.seed = null;
     this.queuedBlock = null;
     this.overAnnounced = false;
+    this.mode = "private";
+    this.createdAt = Date.now();
+    this.matchId = null;
   }
 
   addPlayer(name, socketId) {
@@ -524,4 +605,24 @@ class Room {
       player.seat = index;
     });
   }
+}
+
+/** Includes secrets and hidden cards: database only, never part of the wire protocol. */
+export function saveRoom(room) {
+  const { game, players, ...state } = room;
+  return {
+    version: 1, state: structuredClone(state), game: game?.snapshot() ?? null,
+    players: players.map(({ rng, ...player }) => ({ ...structuredClone(player), rngState: rng?.getState() ?? null })),
+  };
+}
+
+export function restoreRoom(saved, disconnect = false) {
+  if (saved?.version !== 1) throw new RoomError("Unsupported saved room version.");
+  const room = Object.assign(new Room(saved.state.code), structuredClone(saved.state));
+  room.game = saved.game ? CoupGame.restore(saved.game) : null;
+  room.players = saved.players.map(({ rngState, ...player }) => ({ ...structuredClone(player),
+    ...(rngState == null ? {} : { rng: makeRng(rngState) }),
+    ...(disconnect && !player.bot ? { connected: false, socketId: null } : {}),
+  }));
+  return room;
 }

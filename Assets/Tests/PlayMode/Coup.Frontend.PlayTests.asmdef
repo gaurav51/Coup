@@ -1,0 +1,20 @@
+{
+  "name": "Coup.Frontend.PlayTests",
+  "references": [
+    "Coup.Client",
+    "Coup.Core",
+    "Unity.TextMeshPro",
+    "Unity.ugui"
+  ],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "autoReferenced": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

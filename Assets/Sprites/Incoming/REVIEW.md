@@ -1,3 +1,30 @@
+## 2026-10-19 — Claude: panel sweep, text fit and input chrome (finished)
+
+Walked Shop, Missions, Settings, Profile and Wallet in Play mode at 1080x1920,
+cropped each at native resolution. Settings and Wallet needed nothing. Two
+faults turned up that the Play page had not exposed:
+
+`Input` never got the plaque treatment — the name field on Profile was a bare
+square black box among rounded gold-rimmed rows, reading as a hole in the
+panel. It now uses the same plaque, sunk darker with a dimmer rim so it still
+looks like something you type into.
+
+`Text` rows were a flat 120px whatever they held, so a single line left about
+80px of slack. Harmless while the card padded everything out; obvious once the
+card fitted its content. Rows now measure the wrapped text and fit it. Missions
+went 968 -> 865, Profile 1298 -> 1246, and the gaps between a mission's label
+and its Claim button closed.
+
+Disabled rows verified: Shop's "Restore / retry pending purchases" and Missions'
+"Claim reward" both grey their fill, rim and label. Every card came in under the
+1480 cap, so all five size to content. Console: zero errors, zero warnings.
+Returned to edit mode. One script; no scene, prefab or art touched.
+
+Minor and not addressed: the input fill reads very slightly green against the
+navy rows. Cosmetic.
+
+---
+
 ## 2026-10-19 — Claude: platform panel chrome and fit (finished)
 
 Redid the runtime modal panels built by `PlatformPanels.cs` — Play, Collection,

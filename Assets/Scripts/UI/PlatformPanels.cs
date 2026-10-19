@@ -152,7 +152,18 @@ namespace Coup.Game.UI
         }
         private void Clear() { foreach(Transform t in _content) { t.gameObject.SetActive(false);Destroy(t.gameObject); } }
         private RectTransform Row(string name,float height) {var rt=UIFactory.Rect(name,_content,new Vector2(800,height),Vector2.zero);rt.gameObject.AddComponent<LayoutElement>().preferredHeight=height;return rt;}
-        private void Text(string value,float height=120) {var row=Row("Text",height);var label=UIFactory.Text("Body",row,value,31,new Vector2(790,height),Vector2.zero,TextAlignmentOptions.TopLeft);label.richText=false;}
+        // Text rows used a flat 120 whatever they held, so a single line left about
+        // 80px of slack underneath and the panels read as loosely spaced once the
+        // card stopped padding that out. Measure the wrapped text and fit the row.
+        private void Text(string value,float height=120) {
+            var row=Row("Text",height);
+            var label=UIFactory.Text("Body",row,value,31,new Vector2(790,height),Vector2.zero,TextAlignmentOptions.TopLeft);
+            label.richText=false;
+            var needed=Mathf.Clamp(label.GetPreferredValues(value,790f,0f).y+10f,40f,560f);
+            var element=row.GetComponent<LayoutElement>(); if(element!=null)element.preferredHeight=needed;
+            row.sizeDelta=new Vector2(800,needed);
+            ((RectTransform)label.transform).sizeDelta=new Vector2(790,needed);
+        }
         private void Button(string label,Func<Task> action,bool enabled=true) {
             var row=Row(label,92);
             var gold=UIFactory.Gold;
@@ -164,7 +175,12 @@ namespace Coup.Game.UI
             button.onClick.AddListener(()=>Run(action));
         }
         private TMP_InputField Input(string hint,int limit=64) {
-            var row=Row("Input",100);var bg=row.gameObject.AddComponent<Image>();bg.color=new Color(.01f,.025f,.045f);
+            // The field was a bare square black box among rounded, gold-rimmed rows,
+            // which made it read as a hole in the panel. Same plaque, sunk darker and
+            // with a dimmer rim so it still reads as something you type into.
+            var row=Row("Input",100);
+            var gold=UIFactory.Gold;
+            Plaque(row,new Color(.012f,.028f,.05f,.98f),new Color(gold.r,gold.g,gold.b,.34f),2f);
             var input=row.gameObject.AddComponent<TMP_InputField>();var text=UIFactory.Text("Value",row,"",32,new Vector2(760,85),Vector2.zero,TextAlignmentOptions.MidlineLeft);text.richText=false;
             var placeholder=UIFactory.Text("Placeholder",row,hint,30,new Vector2(760,85),Vector2.zero,TextAlignmentOptions.MidlineLeft);placeholder.color=Color.gray;placeholder.richText=false;
             input.textViewport=row;input.textComponent=text;input.placeholder=placeholder;input.characterLimit=limit;input.lineType=TMP_InputField.LineType.SingleLine;return input;

@@ -1,3 +1,37 @@
+## 2026-10-19 — Claude: refresh-token reuse detection (finished)
+
+Rotation alone only refused a replayed refresh token: the thief learned their
+copy was stale while the real session kept running, and the orphaned row sat
+there until its 30-day expiry.
+
+`Accounts.refresh` now records each retired hash on the session, capped at ten
+by `$slice`. A token presented after being spent proves two holders exist, so
+the session row is deleted rather than merely refused. Destroying the row cuts
+live access too: HTTP calls and the socket middleware both re-check the
+sessions collection, the latter on every packet, so a connected socket drops on
+its next command. Only that session dies; other devices keep their own rows.
+
+Client half: `PlatformClient.AccessToken` treated a 401 from `/v1/auth/refresh`
+as fatal and retried the same dead credentials forever, so a revoked or
+expired session stranded the app on an error it could never clear. It now
+drops them and opens a fresh guest session. Cleared inline rather than through
+`Forget()` so no `Changed` handler runs while the refresh lock is still held.
+
+Worth recording: revocation does not cost a legitimate client anything it was
+not already losing. If a refresh response is lost in flight the server has
+rotated and the only copy of the new token died with the response, so that
+client was locked out either way. The change deletes the dead row instead of
+leaving it, and cuts off anyone else holding the spent token.
+
+Backend suite 54/54, up one: the existing rotation test now asserts the reuse
+message, and a new test covers revocation of the session, the newest token and
+the access token together, an untouched second device, and a never-issued token
+being refused without revoking anything. Client recovery verified in Play mode
+by poisoning the stored credentials — it opened a new guest session instead of
+throwing. Console clean.
+
+---
+
 ## 2026-10-19 — Claude: server URL made configurable (finished)
 
 `PlatformClient.DefaultUrl` was a const holding the ngrok hostname, read in

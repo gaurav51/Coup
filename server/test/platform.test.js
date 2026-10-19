@@ -21,9 +21,33 @@ test("guest sessions persist, refresh rotates credentials, and logout invalidate
   assert.equal((await accounts.profile(a.accountId)).name, "Alice");
   const b = await accounts.refresh(a);
   assert.notEqual(b.refreshToken, a.refreshToken);
-  await assert.rejects(accounts.refresh(a), /expired/);
+  await assert.rejects(accounts.refresh(a), /reused/);   // replaying a spent token now revokes
   await store.collection("sessions").deleteOne({ _id: b.sessionId });
   await assert.rejects(accounts.authenticate(b.accessToken), /expired/);
+});
+
+test("a replayed refresh token revokes its own session and leaves other sessions alone", async () => {
+  const first = await accounts.guest("Mallory");
+  const second = await accounts.refresh(first);
+  const third = await accounts.refresh(second);
+  const elsewhere = await accounts.guest("Bystander");
+
+  // Replaying the token spent two rotations ago proves a second holder exists.
+  await assert.rejects(accounts.refresh(first), /reused/);
+
+  // The session is gone, so the thief's copy and the honest client's newest
+  // token are both dead, and the access token stops working too.
+  assert.equal(await store.collection("sessions").findOne({ _id: third.sessionId }), null);
+  await assert.rejects(accounts.refresh(third), /expired/);
+  await assert.rejects(accounts.authenticate(third.accessToken), /expired/);
+
+  // Another device keeps its own row.
+  assert.ok(await accounts.refresh(elsewhere));
+
+  // A token that was never issued is simply refused; it must not revoke anything.
+  const victim = await accounts.guest("Victim");
+  await assert.rejects(accounts.refresh({ sessionId: victim.sessionId, refreshToken: "never-issued" }), /expired/);
+  assert.ok(await accounts.refresh(victim));
 });
 
 test("provider challenges cannot be replayed and linked identities cannot be stolen", async () => {

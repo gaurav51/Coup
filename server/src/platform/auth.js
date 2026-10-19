@@ -6,6 +6,8 @@ export const hash = (text) => crypto.createHash("sha256").update(String(text)).d
 const secretToken = () => crypto.randomBytes(32).toString("base64url");
 const ACCESS_SECONDS = 900;
 const SESSION_MS = 30 * 86400000;
+/** How many retired refresh hashes a session remembers for reuse detection. */
+const REUSE_HISTORY = 10;
 
 export class Accounts {
   constructor(store, { secret, appleAudience, googleAudiences = [], verifyIdentity } = {}) {
@@ -58,14 +60,34 @@ export class Accounts {
     } catch { throw new ApiError(401, "Session expired. Sign in again."); }
   }
 
+  /**
+   * Rotates the refresh token, and treats a spent one as a breach.
+   *
+   * Rotation alone only refuses a replayed token: whoever stole it learns their
+   * copy is stale while the real session keeps running. Each rotation records the
+   * hash it retired, so a token that is presented after being spent proves two
+   * holders exist, and the session is destroyed rather than merely refused.
+   *
+   * Destroying the row is enough to cut off live access as well: HTTP calls and
+   * the socket middleware both re-check the sessions collection, the latter on
+   * every packet, so any connected socket drops on its next command.
+   *
+   * Only this session dies. Other devices hold their own rows and are untouched.
+   */
   async refresh({ sessionId, refreshToken }) {
     requireValue(typeof refreshToken === "string" && refreshToken.length <= 256, 401, "Invalid refresh token.");
+    const presented = hash(refreshToken);
     const next = secretToken();
-    const row = await this.store.collection("sessions").findOneAndUpdate(
-      { _id: sessionId, refreshHash: hash(refreshToken), expiresAt: { $gt: new Date() } },
-      { $set: { refreshHash: hash(next), expiresAt: new Date(Date.now() + SESSION_MS) } }, { returnDocument: "after" });
-    requireValue(row, 401, "Session expired. Sign in again.");
-    return { ...(await this.tokens(row)), refreshToken: next };
+    const sessions = this.store.collection("sessions");
+    const row = await sessions.findOneAndUpdate(
+      { _id: sessionId, refreshHash: presented, expiresAt: { $gt: new Date() } },
+      { $set: { refreshHash: hash(next), expiresAt: new Date(Date.now() + SESSION_MS) },
+        $push: { spentHashes: { $each: [presented], $slice: -REUSE_HISTORY } } }, { returnDocument: "after" });
+    if (row) return { ...(await this.tokens(row)), refreshToken: next };
+
+    const replayed = await sessions.findOneAndDelete({ _id: sessionId, spentHashes: presented });
+    requireValue(!replayed, 401, "This session was signed out because its credentials were reused. Sign in again.");
+    throw new ApiError(401, "Session expired. Sign in again.");
   }
 
   async nonce(provider) {

@@ -46,11 +46,27 @@ namespace Coup.Net
             try {
                 if (!force && !string.IsNullOrEmpty(_accessToken) && _expires > DateTime.UtcNow.AddSeconds(60)) return _accessToken;
                 JsonValue response;
-                if (_credentials == null) response = await Raw("POST", "/v1/auth/guest", JsonValue.FromObject(("name", JsonValue.FromString("Player"))), null, _life.Token);
-                else response = await Raw("POST", "/v1/auth/refresh", _credentials, null, _life.Token);
+                if (_credentials == null) response = await Guest();
+                else {
+                    try { response = await Raw("POST", "/v1/auth/refresh", _credentials, null, _life.Token); }
+                    catch (ApiException error) when (error.Status == 401) {
+                        // The stored credentials are dead for good: expired, signed out
+                        // on another device, or revoked because the refresh token was
+                        // reused. Holding on to them retries the same failure forever,
+                        // so drop them and open a fresh guest session rather than
+                        // stranding the app on an error it can never clear. Cleared
+                        // inline instead of through Forget() so no Changed handler runs
+                        // while this still holds the refresh lock.
+                        SessionVault.Write(null);
+                        _credentials = null; _accessToken = null; Profile = null; _expires = default;
+                        response = await Guest();
+                    }
+                }
                 AcceptSession(response); return _accessToken;
             } finally { _auth.Release(); }
         }
+        private Task<JsonValue> Guest() =>
+            Raw("POST", "/v1/auth/guest", JsonValue.FromObject(("name", JsonValue.FromString("Player"))), null, _life.Token);
         public void AcceptSession(JsonValue response) {
             var credentials = JsonValue.FromObject(("sessionId", JsonValue.FromString(response.Str("sessionId"))),
                 ("refreshToken", JsonValue.FromString(response.Str("refreshToken"))), ("accountId", JsonValue.FromString(response.Str("accountId"))));

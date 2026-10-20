@@ -1,3 +1,39 @@
+## 2026-10-20 — Claude: UI sprite atlas, and my bar-fitting removed (finished)
+
+**Atlas.** The sprite packer was switched off entirely (`m_SpritePackerMode: 0`)
+and no atlases existed. Measured on a six-player table first: 123 active Images
+drawing from **24 distinct textures**, every switch breaking the canvas batch.
+The repeated chrome turned out to be small once imported — FrameLine 128px used
+16 times, Panel_Rounded 96px used 15, Ring 256px used 12 — about 1.11M pixels
+all told against 4.19M in a 2048 atlas.
+
+`Assets/Sprites/UI_Chrome.spriteatlasv2` packs that chrome plus the Buttons and
+Coins folders and Card_Back: 23 sprites on one 1024x2048 ASTC 6x6 page. Rotation
+and tight packing are off, because the panel and frame sprites are 9-sliced and
+either setting corrupts them. Mobile overrides match what `CapFor` already does
+for loose sprites. Card faces, backdrops, the table background and the draw deck
+are deliberately excluded: large and few, so they would fill the atlas without
+reducing switches.
+
+Result on the same table: **24 distinct textures down to 7**, with 97 of 123
+Images drawing from the single page. The six left are exactly the excluded ones.
+Verified rendering and console after packing; 9-slicing intact.
+
+**Removal.** Codex re-anchored TopBar and ActionBar to their parent's top and
+bottom edges in `c5ace98` and `232d7bb`, which is the better fix. My runtime
+`FitBarsToScreen` did centre-based arithmetic on `anchoredPosition`, which is
+meaningless for an edge-anchored rect, so it computed an inset of 972 against a
+240 clamp and pushed the header off screen entirely. It is gone; the scene
+anchoring does the job.
+
+Still open, and not mine to decide while Codex is mid-edit: the Stage is still a
+fixed 1080x1920 centred rect, so the bars hug the *Stage* edges rather than the
+canvas. On a 2.06 aspect that is still 150 units of gap. Making Stage stretch
+vertically would fix it in one scene change now that the bars are edge-anchored,
+but the scene has uncommitted changes and belongs to whoever is in it.
+
+---
+
 ## 2026-10-20 — Codex: integrated countdown clock redesign (finished)
 
 User clarified that the timer's appearance, not just its PPU settings, was wrong.

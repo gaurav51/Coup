@@ -1138,7 +1138,6 @@ namespace Coup.Game.UI
         }
 
         private RectTransform _topBar;
-        private readonly Dictionary<RectTransform, float> _authoredBarInset = new Dictionary<RectTransform, float>();
         private RectTransform _timerTrack;
         private TurnClockRing _timerArc;
         private TurnClockRing _timerEdge;
@@ -1221,55 +1220,7 @@ namespace Coup.Game.UI
             _timerCount.text = Mathf.Max(0, seconds).ToString();
         }
 
-        /// <summary>
-        /// Keeps the top and bottom bars against the screen rather than against the
-        /// art.
-        ///
-        /// The table is a fixed 1080x1920 composition centred in the canvas and the
-        /// scaler matches on width, so a taller phone grows the canvas past the Stage
-        /// and letterboxes it. On a 2.06 aspect that is 150 units of slack at each
-        /// end, which left the header sitting below the top of the screen.
-        ///
-        /// A short, wide screen is the same problem inverted. A 4:3 tablet gives a
-        /// 1080x1440 canvas, shorter than the Stage, and both bars then fall outside
-        /// it entirely: the header above the top edge and the action buttons below
-        /// the bottom, which leaves the game unplayable. The same placement pulls
-        /// them back in, so it runs in both directions rather than only outward.
-        ///
-        /// Each bar is placed absolutely against the canvas edge, keeping the inset
-        /// it was authored with. Absolute rather than nudged on purpose: a nudge is
-        /// only correct if its starting point is captured exactly once, and running
-        /// it twice silently doubled the offset. This cannot compound.
-        /// </summary>
-        private void FitBarsToScreen() {
-            if (_stage == null) return;
-            var canvasRect = _stage.GetComponentInParent<Canvas>()?.transform as RectTransform;
-            if (canvasRect == null) return;
-            var canvasHalf = canvasRect.rect.height * 0.5f;
-            HugEdge(_topBar, canvasHalf, true);
-            HugEdge(_actionBar, canvasHalf, false);
-            HugEdge(_responseBar, canvasHalf, false);
-        }
-
-        private void HugEdge(RectTransform bar, float canvasHalf, bool top) {
-            if (bar == null) return;
-            var stageHalf = _stage.rect.height * 0.5f;
-            var half = bar.rect.height * 0.5f;
-            if (!_authoredBarInset.TryGetValue(bar, out var inset)) {
-                // The gap the artist left between the bar and the edge of the table.
-                // Clamped because a bar that has already been moved would otherwise
-                // read as a negative inset.
-                inset = Mathf.Clamp(top ? stageHalf - (bar.anchoredPosition.y + half)
-                                        : (bar.anchoredPosition.y - half) + stageHalf, 0f, 240f);
-                _authoredBarInset[bar] = inset;
-            }
-            var want = top ? canvasHalf - inset - half : -canvasHalf + inset + half;
-            if (Mathf.Approximately(bar.anchoredPosition.y, want)) return;
-            bar.anchoredPosition = new Vector2(bar.anchoredPosition.x, want);
-        }
-
         private void Update() {
-            FitBarsToScreen();
             var online = match != null && match.playOnline && match.Game != null;
             if (!online) { RenderTurnTimer(false, 0, 0f); return; }
             var over = match.Game.Phase == GamePhase.GameOver;

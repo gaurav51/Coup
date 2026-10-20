@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,8 +7,8 @@ using UnityEngine.UI;
 namespace Coup.Game.UI
 {
     /// <summary>
-    /// Result screen after the victory crest. Win fills the plate with the
-    /// sunburst wash, a large portrait and particles. Loss stays quieter.
+    /// Result screen after the victory crest. A shared navy/gold frame holds
+    /// the winner portrait; victories add staggered firework confetti bursts.
     /// </summary>
     public sealed class GameOverPanel : MonoBehaviour
     {
@@ -32,6 +33,7 @@ namespace Coup.Game.UI
         private TextMeshProUGUI _retryLabel;
         private TextMeshProUGUI _lobbyLabel;
         private ParticleSystem _confetti;
+        private Coroutine _fireworks;
         private CoupArt _art;
 
         public bool IsOpen => _root != null && _root.gameObject.activeSelf;
@@ -66,6 +68,7 @@ namespace Coup.Game.UI
             _lobbyFill = _lobby != null ? _lobby.GetComponent<Image>() : null;
             _retryLabel = _retry?.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
             _lobbyLabel = _lobby?.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
+            PanelTheme.Button(_retry);PanelTheme.Button(_lobby);
             return _group != null && _title != null && _retry != null && _lobby != null && _wash != null;
         }
 
@@ -103,6 +106,7 @@ namespace Coup.Game.UI
                 _sheet.sizeDelta, Vector2.zero, false);
             _border.type = Image.Type.Sliced;
             _border.color = new Color(1f, 0.74f, 0.22f, 1f);
+            PanelTheme.Surface(_background,_border);
 
             _portraitFrame = UIFactory.Rect("Portrait", _sheet, new Vector2(520f, 520f), new Vector2(0f, 250f));
             _portraitHalo = UIFactory.Image("Halo", _portraitFrame, art != null ? art.vfxSpark : null,
@@ -235,25 +239,30 @@ namespace Coup.Game.UI
 
         private void ApplyArt(bool won)
         {
-            var bg = Piece(won ? "WinBg" : "LoseBg");
+            // Use the same sliced frame as the rest of the game. The old plate
+            // included an opaque exterior and a second inset frame in its bitmap.
             if (_background != null)
             {
                 _background.enabled = true;
-                if (bg != null)
+                _background.sprite = _art != null ? _art.roundedPanel : null;
+                _background.type = Image.Type.Sliced;
+                _background.preserveAspect = false;
+                _background.color = new Color(0.025f, 0.04f, 0.07f, 1f);
+                if (_border != null)
                 {
-                    _background.sprite = bg;
-                    _background.type = Image.Type.Simple;
-                    _background.preserveAspect = false;
-                    _background.color = Color.white;
+                    _border.enabled = true;
+                    _border.color = won ? new Color(0.85f, 0.65f, 0.29f) : new Color(0.48f, 0.43f, 0.35f);
                 }
+                PanelTheme.Surface(_background, _border);
             }
             if (_wash != null)
             {
-                _wash.sprite = null;
-                _wash.enabled = false;
-                _wash.color = new Color(1f, 1f, 1f, 0f);
+                _wash.sprite = _art != null ? _art.vfxSpark : null;
+                _wash.enabled = _wash.sprite != null;
+                _wash.preserveAspect = true;
+                _wash.color = won ? new Color(0.94f, 0.63f, 0.19f, 0.12f)
+                                  : new Color(0.25f, 0.33f, 0.48f, 0.08f);
             }
-            if (_border != null) _border.enabled = bg == null;
 
             Assign(_laurel, Piece("Laurel"));
             if (_portraitHalo != null) _portraitHalo.enabled = false;
@@ -336,6 +345,9 @@ namespace Coup.Game.UI
             _sheet.sizeDelta = new Vector2(920f, 1240f);
             _sheet.anchoredPosition = new Vector2(0f, 50f);
             if (_background != null) _background.rectTransform.sizeDelta = _sheet.sizeDelta;
+            if (_border != null) _border.rectTransform.sizeDelta = _sheet.sizeDelta;
+            Place(_wash != null ? _wash.rectTransform : null, new Vector2(760f, 760f), new Vector2(0f, 280f));
+            if (_dim != null) _dim.rectTransform.sizeDelta = new Vector2(4000f, 4000f);
             var portrait = won ? 520f : 440f;
             Place(_portraitFrame, new Vector2(portrait, portrait), new Vector2(0f, 300f));
             Place(_laurel != null ? _laurel.rectTransform : null, new Vector2(portrait + 160f, portrait + 160f), Vector2.zero);
@@ -364,6 +376,7 @@ namespace Coup.Game.UI
             label.fontStyle = FontStyles.Bold;
             label.color = Color.white;
             FitHud(label, 36f);
+            PanelTheme.Button(button);
             return button;
         }
 
@@ -383,102 +396,117 @@ namespace Coup.Game.UI
                 if (_confetti != null) ShapeVictoryConfetti(_confetti);
             }
 
+            if (_confetti == null) return;
             _confetti.gameObject.SetActive(true);
             _confetti.Clear(true);
             _confetti.Play(true);
+            _fireworks = StartCoroutine(FireworkBursts());
         }
 
-        /// <summary>
-        /// Turns the prefab's drizzle into a celebration. Two things were wrong with
-        /// winning: the confetti spawned in a narrow box across the middle of the
-        /// card, so it covered the title and buttons rather than falling past them,
-        /// and it emitted only a slow trickle that needed a full particle lifetime —
-        /// over five seconds — to reach any density. Both are fixed here: emit as a
-        /// wide line along the top edge, and open at the density the trickle was
-        /// always climbing towards.
-        ///
-        /// Each system keeps its own rate, colours and materials, so the mix between
-        /// ribbons, flakes, sparks and diamonds is the artist's. Applied to the
-        /// instantiated copy; the prefab is hand-tuned and never written back to.
-        /// </summary>
+        // Configure the instantiated systems only; the hand-authored prefab stays intact.
         private void ShapeVictoryConfetti(ParticleSystem root)
         {
-            // Where the top of the card sits, in the confetti's own space. The
-            // emitter is parented to the portrait frame, so this is not simply the
-            // sheet's height.
-            var top = 560f;
-            var width = 980f;
-            if (_sheet != null && _portraitFrame != null)
-            {
-                var sheetTop = _sheet.TransformPoint(new Vector3(0f, _sheet.rect.yMax, 0f));
-                top = _portraitFrame.InverseTransformPoint(sheetTop).y;
-                width = _sheet.rect.width;
-            }
-
+            root.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             foreach (var ps in root.GetComponentsInChildren<ParticleSystem>(true))
             {
-                var emission = ps.emission;
-                if (!emission.enabled) continue;
-
-                // The prefab emits from a 620x280 box at y=-40 -- the middle of the
-                // card -- so confetti appeared on top of the title and the buttons
-                // instead of falling past them. A constant -90 force carries a
-                // particle about 1200 units over its life, which is the card's full
-                // height, so emitting as a wide line along the top edge gives a fall
-                // that lasts exactly as long as the particle does.
-                var shape = ps.shape;
-                if (shape.enabled && shape.shapeType == ParticleSystemShapeType.Box)
-                {
-                    shape.scale = new Vector3(width, 90f, 0.01f);
-                    shape.position = new Vector3(0f, top, 0f);
-                }
-
-                // Starting velocity ran -30..+50 against a -90 force, so for the first
-                // two seconds a particle has barely moved and the whole shower hangs
-                // around the crest. Biasing the start downward makes it read as
-                // falling from the moment it appears; the spread is kept so pieces
-                // still drift at different speeds rather than dropping as a sheet.
-                var velocity = ps.velocityOverLifetime;
-                if (velocity.enabled)
-                {
-                    velocity.y = new ParticleSystem.MinMaxCurve(-150f, -40f);
-                }
-
                 var main = ps.main;
-                var life = Mathf.Max(0.5f, main.startLifetime.constant);
-
-                // These flakes are 60-120 units wide on a 920 wide card, so the rate
-                // the prefab ships settles at a density that hides the laurel and the
-                // title. Halving it leaves the fall readable; the win screen wants
-                // confetti you can pick individual pieces out of, not a gold curtain.
-                var trickle = Mathf.Max(0.5f, emission.rateOverTime.constant) * 0.5f;
-                emission.rateOverTime = trickle;
-
-                // A trickle needs one full particle lifetime to reach its steady
-                // density, and these live 5.2s, so the first seconds of a win showed
-                // a near-empty screen climbing slowly. rate x lifetime is exactly the
-                // population the prefab was authored for: open at it instead of
-                // crawling up to it. Scaling off each system's own rate keeps the
-                // ribbon/flake/spark/diamond mix the artist chose.
-                var opening = Mathf.RoundToInt(Mathf.Clamp(trickle * life, 8f, 90f));
-
-                emission.SetBursts(new[]
+                main.loop = false;
+                main.duration = 6f;
+                main.playOnAwake = false;
+                main.useUnscaledTime = true;
+                main.simulationSpace = ParticleSystemSimulationSpace.Local;
+                main.startSpeed = 0f;
+                main.startSize3D = ps.name == "Spark";
+                main.gravityModifier = 0f;
+                main.maxParticles = 320;
+                var emission = ps.emission;
+                emission.enabled = false;
+                var shape = ps.shape; shape.enabled = false;
+                var velocity = ps.velocityOverLifetime;
+                velocity.enabled = true;
+                velocity.space = ParticleSystemSimulationSpace.Local;
+                velocity.x = 0f; velocity.y = 0f; velocity.z = 0f;
+                velocity.orbitalX = 0f; velocity.orbitalY = 0f; velocity.orbitalZ = 0f;
+                velocity.radial = 0f;
+                velocity.speedModifier = new ParticleSystem.MinMaxCurve(1f,
+                    AnimationCurve.Linear(0f, 1f, 1f, 0.2f));
+                var force = ps.forceOverLifetime;
+                force.enabled = true;
+                force.space = ParticleSystemSimulationSpace.Local;
+                force.x = 0f; force.y = -100f; force.z = 0f;
+                var noise = ps.noise; noise.enabled = false;
+                var limit = ps.limitVelocityOverLifetime;
+                limit.enabled = false;
+                var trails = ps.trails; trails.enabled = false;
+                if (ps.name == "Spark")
                 {
-                    new ParticleSystem.Burst(0f, (short)opening),
-                    new ParticleSystem.Burst(0.35f, (short)Mathf.Max(4, opening / 3))
-                });
-
-                // The prefab's cap was sized for the slow climb and would otherwise
-                // swallow the opening burst.
-                main.maxParticles = Mathf.Max(main.maxParticles, opening * 3);
+                    var rotation = ps.rotationOverLifetime; rotation.enabled = false;
+                    var rotationSpeed = ps.rotationBySpeed; rotationSpeed.enabled = false;
+                }
+                var size = ps.sizeOverLifetime;
+                size.enabled = true;
+                size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                    new Keyframe(0f, 0.8f), new Keyframe(0.08f, 1f), new Keyframe(0.7f, 0.8f), new Keyframe(1f, 0.1f)));
+                var color = ps.colorOverLifetime;
+                color.enabled = true;
+                var fade = new Gradient();
+                fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                    new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.45f), new GradientAlphaKey(0f, 1f) });
+                color.color = fade;
             }
+        }
+
+        private IEnumerator FireworkBursts()
+        {
+            // Separate points and timings read as fireworks, rather than a rain emitter.
+            var centers = new[] { new Vector2(-300f, 120f), new Vector2(300f, 180f),
+                new Vector2(0f, 330f), new Vector2(-360f, -100f), new Vector2(360f, -40f) };
+            var systems = _confetti.GetComponentsInChildren<ParticleSystem>(true);
+            for (var burst = 0; burst < centers.Length; burst++)
+            {
+                foreach (var ps in systems)
+                {
+                    var spark = ps.name == "Spark";
+                    if (ps == _confetti || ps.name == "Ribbon") continue;
+                    var count = spark ? 56 : 24;
+                    // Even angular coverage makes an expanding starburst legible at once.
+                    for (var i = 0; i < count; i++)
+                    {
+                        var angle = (i + UnityEngine.Random.Range(-0.3f, 0.3f)) * Mathf.PI * 2f / count;
+                        var direction = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f);
+                        var speed = UnityEngine.Random.Range(200f, 420f);
+                        var gold = new Color(1f, 0.76f, 0.3f);
+                        var tint = spark ? new Color(1f, 0.91f, 0.65f) :
+                            (i % 4 == 0 ? new Color(0.3f, 0.85f, 0.95f) : gold);
+                        var emit = new ParticleSystem.EmitParams
+                        {
+                            position = (Vector3)centers[burst] + direction * 5f,
+                            velocity = direction * speed,
+                            startLifetime = UnityEngine.Random.Range(1.15f, 1.85f),
+                            startSize3D = spark ? new Vector3(8f, UnityEngine.Random.Range(32f, 48f), 1f)
+                                               : Vector3.one * UnityEngine.Random.Range(12f, 22f),
+                            startColor = tint,
+                            rotation = spark ? 90f - angle * Mathf.Rad2Deg : UnityEngine.Random.Range(0f, 360f),
+                            angularVelocity = spark ? 0f : UnityEngine.Random.Range(-240f, 240f),
+                            applyShapeToPosition = false
+                        };
+                        ps.Emit(emit, 1);
+                    }
+                }
+                yield return new WaitForSecondsRealtime(burst == 1 ? 0.65f : 0.42f);
+            }
+            _fireworks = null;
         }
 
         private void StopConfetti()
         {
+            if (_fireworks != null) StopCoroutine(_fireworks);
+            _fireworks = null;
             if (_confetti == null) return;
             _confetti.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
+
+        private void OnDisable() => StopConfetti();
 
         private void FitDisplay(TextMeshProUGUI text, float size)
         {
@@ -509,7 +537,7 @@ namespace Coup.Game.UI
 
         private static TMP_FontAsset HudFont()
         {
-            var labels = UnityEngine.Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var labels = UnityEngine.Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include);
             for (var i = 0; i < labels.Length; i++)
             {
                 var font = labels[i].font;

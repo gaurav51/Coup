@@ -7,6 +7,17 @@ export function api(platform) {
   return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     if (!url.pathname.startsWith("/v1/")) return false;
+    // Log route metadata only: OAuth codes, bearer headers and bodies never enter logs.
+    const started=performance.now();
+    const route=url.pathname.replace(/(\/friends\/)[^/]+/, "$1:id").replace(/(\/missions\/)[^/]+/, "$1:id");
+    let logged=false;
+    const logRequest=aborted=>{
+      if(logged)return;logged=true;
+      console.log(JSON.stringify({type:"api",method:req.method,route:route.slice(0,160),
+        status:aborted?0:res.statusCode,durationMs:Math.round(performance.now()-started),aborted}));
+    };
+    res.once("finish",()=>logRequest(false));
+    res.once("close",()=>logRequest(!res.writableFinished));
     const ip = platform.trustProxy && req.socket.remoteAddress?.match(/^(::1|::ffff:127\.|127\.)/)
       ? String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress).split(",").at(-1).trim() : req.socket.remoteAddress;
     try {

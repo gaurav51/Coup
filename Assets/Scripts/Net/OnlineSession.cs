@@ -211,7 +211,7 @@ namespace Coup.Game
                 _overlay = dim.gameObject; var image = _overlay.AddComponent<Image>(); image.color = new Color(0.01f,0.02f,0.04f,.92f);
                 _card = UIFactory.Rect("Card",dim,new Vector2(920,720),Vector2.zero);
                 var bg = _card.gameObject.AddComponent<Image>(); bg.color = UIFactory.Navy;
-                var border = _card.gameObject.AddComponent<Outline>(); border.effectColor = UIFactory.Gold; border.effectDistance = new Vector2(2,2);
+                PanelTheme.Surface(bg);
                 _message = UIFactory.Text("Message",_card,text,32,new Vector2(820,360),new Vector2(0,110)); _message.richText = false;
             }
             for (int i=_card.childCount-1;i>=0;i--) { var child = _card.GetChild(i); if(child.GetComponent<Button>()!=null) { child.gameObject.SetActive(false); UnityEngine.Object.Destroy(child.gameObject); } }
@@ -221,7 +221,7 @@ namespace Coup.Game
             if (_card == null) return;
             var button = UIFactory.Button(label,_card,null,new Vector2(380,85),position);
             button.GetComponent<Image>().color = new Color(.16f,.21f,.29f);
-            var border = button.gameObject.AddComponent<Outline>(); border.effectColor = UIFactory.Gold; border.effectDistance = Vector2.one;
+            PanelTheme.Button(button);
             UIFactory.Text("Label",button.transform,label.ToUpperInvariant(),28,new Vector2(350,75),Vector2.zero);
             button.onClick.AddListener(() => action());
         }

@@ -1,3 +1,183 @@
+## 2026-10-20 — Codex: integrated countdown clock redesign (finished)
+
+User clarified that the timer's appearance, not just its PPU settings, was wrong.
+Removed the detached thin rail and tiny seconds plaque. Countdown now sits inside
+StatusPlate as a 96-unit navy circular dial, fine gold bezel, draining gold arc,
+large numeric count and small SEC caption. Status copy reserves space only while
+the clock is visible, restoring authored text rects when hidden. Amber/red timing
+and server deadline inputs preserved. No new art or source prefab/scene changes.
+
+Added TurnClockRing, a Canvas-native annular mesh, avoiding sprite slice/PPU
+issues entirely. Initial preview failed to render because the custom Graphic
+needed CanvasRenderer explicitly; fixed with both a RequireComponent attribute
+and creation before the Graphic. Verified actual populated meshes (480 vertices
+for full circles and 384 for 80% arc), native 1080x1920 crop, urgent sample and
+real online play: connected=true, 18s remaining, 0.878 progress, timer visible.
+Captures Timer_Dial_Fixed.png, Timer_Dial_Online.png, Timer_Dial_Urgent.png.
+Compilation: zero errors. Editor console also contains recurring Unity PlayerLoop
+recursive-call errors during MCP inspection; do not claim a clean console.
+Returned to edit mode. No APK rebuild in this pass.
+
+---
+
+## 2026-10-20 — Codex: timer slice / PPU correction (finished)
+
+Fixed timer-specific Image multipliers rather than changing shared sprite imports.
+The rail uses 30px slice borders on a 14-unit-high rect: multiplier 10 now gives
+3-unit borders. The badge frame has 70px vertical borders; multiplier 6 fits
+inside its 36-unit height without Unity compressing both corners together.
+Badge fill uses multiplier 4; the 4-unit highlight uses multiplier 20.
+
+Changed drain graphics from Filled (which stretches corner pixels and ignores
+sliced-border sizing) to Sliced, resizing their rects to the remaining fraction.
+Native 1080x1920 screenshot and crop inspected: Timer_PPU_Corrected.png.
+Verified full/half/5% widths of 822/411/41.1 units; zero hides the fill.
+No compile/console errors. Returned to edit mode. No scene, prefab or sprite
+import changes. Prior unrelated workspace changes preserved.
+
+---
+
+## 2026-10-20 — Codex: styled turn countdown rail (finished)
+
+Redesigned Claude's runtime turn timer in TableView: slim inset navy rail with
+gold rim, ten subtle divisions, bright upper edge and a diamond following the
+remaining fill. A matching gold-framed seconds badge sits at the right. Tightened
+its spacing after native inspection caught the first layout touching the cards.
+It now fits directly below StatusPlate, above the hand. All copy is TMP; existing
+shared sprites are reused. No scene or prefab sources changed.
+
+Preserved the authoritative OnlineSecondsRemaining/OnlineTurnProgress inputs.
+Gold above ten, amber down to six, red at five with a restrained badge pulse.
+The whole timer hides for game over, disconnect, missing deadline and local mode;
+the previous local-mode early return could leave a previously created timer up.
+All timer graphics have raycastTarget=false.
+
+Verified compilation (zero errors) and Play mode visual samples at 24s/80%,
+8s/27%, 4s/13% and zero. Zero fill and hide verified; no graphics intercept input.
+Native 1080x1920 capture inspected with a crop:
+Assets/Screenshots/Timer_Gold_Verified.png; amber/red captures alongside it.
+This was a local presentation preview with timer inputs injected through Editor
+reflection, not a new live-server countdown test. Existing server timing untouched.
+Returned to edit mode. An overlapping Android build temporarily delayed preview;
+this entry does not claim a rebuilt APK containing the timer design.
+
+---
+
+## 2026-10-20 — Codex: startup loading screen (finished)
+
+Added StartupLoadingScreen before the login UI on first app entry. Uses current
+card-back sprites, Coup fonts and the shared sliced navy/gold panel images. Has
+an animated indeterminate activity bar, a short legible opening, resource warmup,
+and a fade into login. Existing credentials restore under the loading curtain;
+failed restore returns to an actionable login page. No anonymous account is
+created just to show startup. Later lobby visits skip the opening curtain.
+
+Login stays hidden while startup is active, so labels/buttons do not show through
+the opaque curtain. Loader animation and transitions use unscaled time. No
+prefab/scene sources rewritten; no additional generated artwork needed.
+
+Verified: four frontend Play Mode tests passed; after the opacity/visibility
+refinement, the two affected login/panel integration tests passed again. No
+compile errors. Android development ARM64 APK rebuilt successfully with 0 errors
+and 7 existing warnings at Builds/FrontendQA/Coup.apk; this build also includes
+the prior Google/Guest icons and API logging. Initial screenshot exposed the
+login showing through, which was corrected. Final manual preview was skipped
+because the user had already moved to Game in Play mode; left their state alone.
+
+---
+
+## 2026-10-20 — Codex: API request logging (finished)
+
+PlatformClient now prints numbered request/response metadata in the Unity Console
+and development Android logs: method, endpoint, HTTP status, outcome and elapsed
+milliseconds. Release builds compile these debug log calls out. Request bodies,
+response bodies, Authorization headers, OAuth query parameters and receipts are
+not logged. Cancellation and connection failures produce a completion log too.
+
+Backend /v1 requests log JSON route/status/duration on finish or client abort.
+Query strings are excluded and friend/mission identifiers become :id. Restarted
+the existing local host to activate logging. Verified real guest/profile HTTP200
+and unauthenticated profile HTTP401 entries in server/.data/host.log and Unity
+Console; no compile errors. Returned Editor to edit mode. APK not rebuilt for
+this logging-only change.
+
+---
+
+## 2026-10-20 — Codex: game-over background and firework confetti (finished)
+
+Replaced WinBg/LoseBg bitmap plates with the existing shared sliced navy/gold
+panel frame. The old image contained its own opaque exterior and inset border;
+scaling it as the entire card produced a mismatched background. Added a restrained
+crest glow, resized the border with the sheet, and extended the modal dimmer.
+All lettering remains TMP; no scene or prefab sources rewritten.
+
+Replaced the top-edge ribbon shower with five staggered radial firework bursts.
+Only the instantiated WinConfetti systems are configured: no continuous emission,
+no ribbon particles, small gold/teal foil, outward spark streaks, deceleration,
+gentle gravity and short fades. The celebration finishes rather than looping.
+Closing, retrying, reopening and disabling cancel the burst coroutine and clear
+particles. Source WinConfetti.prefab is unchanged.
+
+Verified in Play mode using local preview, at 1080x1920; inspected the native win
+capture rather than judging the inline thumbnail. Captures:
+Assets/Screenshots/GameOver_Fireworks_Final.png and GameOver_Defeat_Final.png.
+Defeat has zero particles; hide clears to zero; retry and lobby callbacks each
+fire once and close the panel. Compilation and console: zero errors/warnings.
+Returned to edit mode. Existing unrelated workspace edits preserved.
+
+---
+
+## 2026-10-20 — Codex: Google and Guest login icons (finished)
+
+Generated GuestGold_v1.png with real alpha: a gold anonymous bust matching the
+imperial UI. Imported GoogleG.png from Google's official identity branding page,
+keeping its colors unchanged. Saved both in Assets/Sprites/Login and assigned
+references on Resources/PanelTheme.asset. LoginScreen now draws each beside its
+TMP label, with preserveAspect, no raycast interception and consistent spacing.
+Busy sign-in dims the complete button, including its frame, label and icon.
+
+Verified script compilation with no errors and inspected the actual Game view
+capture Assets/Screenshots/Login_With_Icons.png. A later inspection call found
+the user had moved into Game scene; did not disturb that editor state. No new
+functional tests for these visual-only changes. APK from previous entry has not
+been rebuilt for these two new icons.
+
+---
+
+## 2026-10-20 — Codex: login page and shared panel image treatment (finished)
+
+Added LoginScreen over the authored lobby, using existing hall art, TMP fonts,
+image-backed navy/gold containers and buttons. First launch now waits for an
+explicit Guest or Google choice instead of silently creating a guest. Saved
+sessions restore automatically. Guest reaches the lobby, sign-out and account
+deletion return to login. Google uses the existing backend browser OAuth flow,
+with cancellation, timeout and error handling; no secrets are embedded in Unity.
+This is Google account OAuth, not the separate Play Games Services SDK. Live
+Google provider credential setup/testing remains unfinished from the earlier
+account-setup work; this entry does not claim live Google login verified.
+
+Added Resources/PanelTheme as the shared image style for platform panels,
+network/waiting/reconnect overlays, game decision dialogs and result buttons.
+Existing custom victory/defeat art remains in use. No prefab sources rewritten.
+Fixed Rules text clipping by allowing long content rows to grow within scrolling.
+
+Corrected Plaque slice borders through TextureImporter (160/130/160/130),
+not by editing metadata text. Panel rim PPU multiplier 3, button rim multiplier 2;
+container centers use an opaque navy fill and an image rim with fillCenter=false.
+This avoids scaling the thin cropped banner texture across a tall container and
+prevents alpha holes from showing the lobby through the panel.
+
+Verified: four Play Mode integration tests pass, including explicit guest choice,
+session restoration, sign-out, all platform panel text overflow checks, forced
+WebSocket disconnect/recovery without historical VFX, and ranked matchmaking.
+Initial online tests failed while backend readiness was false; restarted the
+existing local service, then /ready and the public HTTP/WSS smoke check passed.
+Android development ARM64 APK rebuilt successfully at Builds/FrontendQA/Coup.apk,
+0 errors, 7 existing/configuration warnings. Google Play licensing/products and
+physical-device sign-in/purchase tests remain release blockers.
+
+---
+
 ## 2026-10-20 — Claude: HUD bars fit short screens as well as tall (finished)
 
 Follow-up to the tall-display fix, which only engaged when the canvas was

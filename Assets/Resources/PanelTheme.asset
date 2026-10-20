@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3cf93d07031343fbaa96441753376be, type: 3}
+  m_Name: PanelTheme
+  m_EditorClassIdentifier: Coup.Client::Coup.Game.UI.PanelTheme
+  panel: {fileID: 21300000, guid: e352c399504dd4bbd99b8fe86dce66cc, type: 3}
+  panelFill: {fileID: 21300000, guid: 3abff22c911094e66b68e11f0fee846e, type: 3}
+  buttonFill: {fileID: 21300000, guid: 2d7c53e438b2a4a6c9c040d6e334b3e7, type: 3}
+  buttonFrame: {fileID: 21300000, guid: 4e050e22ce399449cbbdbd3e892bb681, type: 2}
+  googleIcon: {fileID: 21300000, guid: 7e2af8c3b576b4cf0aa5a9df906f2f78, type: 3}
+  guestIcon: {fileID: 21300000, guid: 58d66d52af3da4bb5aa6b985b1a26ab8, type: 3}

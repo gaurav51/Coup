@@ -27,8 +27,34 @@ namespace Coup.Frontend.Tests
             Assert.IsTrue(ready(),"Timed out waiting for the frontend flow.");
         }
         [UnityTest,Category("Integration")]
+        public IEnumerator LoginRequiresChoiceAndGuestEntersLobby() {
+            yield return SceneManager.LoadSceneAsync("Lobby");yield return null;
+            var login=UnityEngine.Object.FindAnyObjectByType<LoginScreen>();
+            yield return Until(()=>!login.IsStarting);
+            Assert.IsTrue(login.IsVisible);Assert.IsFalse(PlatformClient.Instance.HasAccount);
+            Assert.IsFalse(login.transform.Find("Actions").gameObject.activeSelf);
+            Assert.NotNull(GameObject.Find("GoogleSignIn"));
+            foreach(var text in login.transform.Find("LoginPage").GetComponentsInChildren<TMP_Text>()) {
+                text.ForceMeshUpdate();Assert.IsFalse(text.isTextOverflowing,text.text);
+            }
+            GameObject.Find("GuestSignIn").GetComponent<Button>().onClick.Invoke();
+            yield return Until(()=>!login.IsVisible);
+            Assert.NotNull(PlatformClient.Instance.Profile);
+            Assert.IsTrue(login.transform.Find("Actions").gameObject.activeSelf);
+            yield return SceneManager.LoadSceneAsync("Lobby");yield return null;
+            login=UnityEngine.Object.FindAnyObjectByType<LoginScreen>();
+            yield return Until(()=>!login.IsVisible);
+            var panels=UnityEngine.Object.FindAnyObjectByType<PlatformPanels>();
+            panels.Show("Sign out");yield return Until(()=>!panels.Loading);
+            var confirm=panels.transform.Find("PlatformPanels/Card/Viewport/Content/Confirm sign out").GetComponent<Button>();
+            confirm.onClick.Invoke();yield return Until(()=>login.IsVisible&&!PlatformClient.Instance.HasAccount);
+            Assert.IsFalse(login.transform.Find("Actions").gameObject.activeSelf);
+        }
+        [UnityTest,Category("Integration")]
         public IEnumerator OnlinePanelsLoadFromBackendAndRemainUsableAfterCancellation() {
             yield return SceneManager.LoadSceneAsync("Lobby");
+            yield return Until(()=>GameObject.Find("GuestSignIn")!=null && !UnityEngine.Object.FindAnyObjectByType<LoginScreen>().IsStarting);
+            GameObject.Find("GuestSignIn").GetComponent<Button>().onClick.Invoke();
             yield return Until(()=>PlatformClient.Instance.Profile!=null);
             var panels=UnityEngine.Object.FindAnyObjectByType<PlatformPanels>();Assert.NotNull(panels);
             foreach(var page in new[]{"Profile","Account","Friends","Private table","Ranked","Leaderboard","History","Wallet","Missions","Collection","Shop","Season","Event","Settings","Rules","Connection","Delete account","Sign out","Play"}) {

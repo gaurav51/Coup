@@ -30,6 +30,7 @@ namespace Coup.Net
         private string _accessToken;
         private DateTime _expires;
         private readonly SemaphoreSlim _auth = new SemaphoreSlim(1, 1);
+        private static int _requestSequence;
         private CancellationTokenSource _life = new CancellationTokenSource();
         public bool HasAccount => _credentials != null;
         private void Awake() {
@@ -67,6 +68,18 @@ namespace Coup.Net
         }
         private Task<JsonValue> Guest() =>
             Raw("POST", "/v1/auth/guest", JsonValue.FromObject(("name", JsonValue.FromString("Player"))), null, _life.Token);
+        public async Task SignInWithGoogle(CancellationToken token, Action browserOpened = null) {
+            var begin=await PublicRequest("/v1/auth/browser/start",JsonValue.FromObject(("provider",JsonValue.FromString("google")),("link",JsonValue.FromBool(false))),token);
+            token.ThrowIfCancellationRequested();
+            Application.OpenURL(begin.Str("url"));browserOpened?.Invoke();
+            for(int i=0;i<90;i++) {
+                await Task.Delay(3000,token);
+                var result=await PublicRequest("/v1/auth/browser/poll",JsonValue.FromObject(("state",JsonValue.FromString(begin.Str("state"))),("pollToken",JsonValue.FromString(begin.Str("pollToken")))),token);
+                token.ThrowIfCancellationRequested();
+                if(!result.Flag("pending")){AcceptSession(result);return;}
+            }
+            throw new InvalidOperationException("Sign-in timed out. Please try again.");
+        }
         public void AcceptSession(JsonValue response) {
             var credentials = JsonValue.FromObject(("sessionId", JsonValue.FromString(response.Str("sessionId"))),
                 ("refreshToken", JsonValue.FromString(response.Str("refreshToken"))), ("accountId", JsonValue.FromString(response.Str("accountId"))));
@@ -106,6 +119,12 @@ namespace Coup.Net
                     request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes((body ?? JsonValue.FromObject()).Encode()));
                     request.SetRequestHeader("Content-Type", "application/json");
                 }
+                var requestId=Interlocked.Increment(ref _requestSequence);
+                var endpoint=path.Split('?')[0];
+                var timer=System.Diagnostics.Stopwatch.StartNew();
+                var outcome="failed";
+                LogApi($"[API #{requestId}] → {method} {endpoint}");
+                try {
                 var operation = request.SendWebRequest();
                 while (!operation.isDone) {
                     if (cancellation.IsCancellationRequested) { request.Abort(); cancellation.ThrowIfCancellationRequested(); }
@@ -117,8 +136,18 @@ namespace Coup.Net
                 try { result = JsonValue.Parse(request.downloadHandler.text); }
                 catch { throw new ApiException(request.responseCode, "The server returned an unexpected response. Please try again."); }
                 if (request.responseCode >= 400 || !result.Flag("ok")) throw new ApiException(request.responseCode, result.Str("error") ?? "The request could not be completed.");
+                outcome="ok";
                 return result;
+                } finally {
+                    timer.Stop();
+                    if(cancellation.IsCancellationRequested)outcome="cancelled";
+                    else if(request.result==UnityWebRequest.Result.ConnectionError)outcome="connection-error";
+                    LogApi($"[API #{requestId}] ← {method} {endpoint} | HTTP {request.responseCode} | {outcome} | {timer.ElapsedMilliseconds} ms");
+                }
             }
         }
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+        private static void LogApi(string line) => Debug.Log(line);
     }
 }

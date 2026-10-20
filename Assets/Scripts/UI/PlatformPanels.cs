@@ -49,9 +49,8 @@ namespace Coup.Game.UI
             Wire("Actions/Friends", () => Show("Friends")); Wire("Actions/Table", () => Show("Private table"));
             Wire("FriendsSheet/Card/Host", () => LaunchPrivate(null));
             Wire("FriendsSheet/Card/Join", () => Show("Private table"));
-            Build(); UpdateHeader(); Boot();
+            Build(); UpdateHeader();
         }
-        private async void Boot() { try { await _api.RefreshProfile(_view.Token); if (this != null) UpdateHeader(); } catch (Exception) { if(this != null) UpdateHeader(); } }
         private void OnDestroy() { _view.Cancel(); _api.Changed -= UpdateHeader; if (_store != null) _store.Changed -= OnStoreChanged; }
         private void Update() {
             if (IsOpen && Keyboard.current?.escapeKey.wasPressedThisFrame == true) Close();
@@ -96,6 +95,7 @@ namespace Coup.Game.UI
             var closeRim=UIFactory.Image("Rim",close.transform,_art!=null?_art.roundedBorder:null,new Vector2(420,78),Vector2.zero,false);closeRim.type=Image.Type.Sliced;closeRim.color=new Color(UIFactory.Gold.r,UIFactory.Gold.g,UIFactory.Gold.b,.45f);
             Stretch((RectTransform)closeRim.transform);
             UIFactory.Text("Label",close.transform,"BACK",28,new Vector2(380,68),Vector2.zero).color=new Color(.78f,.74f,.66f);
+            PanelTheme.Button(close);
             close.onClick.AddListener(Close);
             _root.SetActive(false);
         }
@@ -114,6 +114,7 @@ namespace Coup.Game.UI
             var rt=(RectTransform)border.transform;
             rt.anchorMin=Vector2.zero;rt.anchorMax=Vector2.one;
             rt.offsetMin=new Vector2(inset,inset);rt.offsetMax=new Vector2(-inset,-inset);
+            if(target.name=="Card")PanelTheme.Surface(bg,border);
         }
 
         /// <summary>
@@ -159,7 +160,7 @@ namespace Coup.Game.UI
             var row=Row("Text",height);
             var label=UIFactory.Text("Body",row,value,31,new Vector2(790,height),Vector2.zero,TextAlignmentOptions.TopLeft);
             label.richText=false;
-            var needed=Mathf.Clamp(label.GetPreferredValues(value,790f,0f).y+10f,40f,560f);
+            var needed=Mathf.Clamp(label.GetPreferredValues(value,790f,0f).y+16f,40f,2400f);
             var element=row.GetComponent<LayoutElement>(); if(element!=null)element.preferredHeight=needed;
             row.sizeDelta=new Vector2(800,needed);
             ((RectTransform)label.transform).sizeDelta=new Vector2(790,needed);
@@ -169,7 +170,7 @@ namespace Coup.Game.UI
             var gold=UIFactory.Gold;
             Plaque(row,enabled?new Color(.10f,.15f,.21f,.97f):new Color(.07f,.09f,.12f,.92f),
                        enabled?new Color(gold.r,gold.g,gold.b,.70f):new Color(.45f,.45f,.48f,.30f),2f);
-            var button=row.gameObject.AddComponent<Button>();button.interactable=enabled;
+            var button=row.gameObject.AddComponent<Button>();button.interactable=enabled;PanelTheme.Button(button);
             var text=UIFactory.Text("Label",row,label,30,new Vector2(740,80),Vector2.zero);text.richText=false;
             if(!enabled)text.color=new Color(.55f,.55f,.58f);
             button.onClick.AddListener(()=>Run(action));
@@ -220,10 +221,10 @@ namespace Coup.Game.UI
                     Button("Sign in with Google",()=>Link("google",token,false),signInCapabilities.Flag("google"));break;
                 case "Sign out":
                     Text("Before signing out, link your account to Google. An unlinked guest account cannot be recovered after its credentials are removed.",180);
-                    Button("Confirm sign out",async()=>{await _api.SignOut();Show("Account");});break;
+                    Button("Confirm sign out",async()=>{await _api.SignOut();Close();GetComponent<LoginScreen>().Show();});break;
                 case "Delete account":
                     Text("Permanently delete your profile, friends and sign-in sessions. Purchase records may be retained for required store reconciliation. Leave your active table first. This cannot be undone.",240);
-                    var confirm=Input("Type DELETE to confirm",6);Button("Permanently delete account",async()=>{if(confirm.text!="DELETE")throw new InvalidOperationException("Type DELETE to confirm.");await _api.Request("DELETE","/v1/account",null,token);_api.Forget();Show("Play");});break;
+                    var confirm=Input("Type DELETE to confirm",6);Button("Permanently delete account",async()=>{if(confirm.text!="DELETE")throw new InvalidOperationException("Type DELETE to confirm.");await _api.Request("DELETE","/v1/account",null,token);_api.Forget();Close();GetComponent<LoginScreen>().Show();});break;
                 case "Private table":
                     Text("Create a table and share its code. All players must be ready before the host starts.",130);
                     Button("Host a private table",()=>{LaunchPrivate(null);return Task.CompletedTask;});

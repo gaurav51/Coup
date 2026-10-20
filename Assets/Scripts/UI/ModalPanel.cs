@@ -76,6 +76,7 @@ namespace Coup.Game.UI
                 _dismiss.onClick.RemoveAllListeners();
                 _dismiss.onClick.AddListener(Hide);
             }
+            ApplyTheme();
             return true;
         }
 
@@ -124,9 +125,14 @@ namespace Coup.Game.UI
             UIFactory.Text("Label", _dismiss.transform, "CLOSE", 34, new Vector2(420, 60), Vector2.zero).fontStyle = FontStyles.Bold;
             _dismiss.onClick.AddListener(Hide);
 
+            ApplyTheme();
             _root.gameObject.SetActive(false);
         }
 
+        private void ApplyTheme() {
+            PanelTheme.Surface(_sheet.Find("Bg")?.GetComponent<Image>(),_sheet.Find("Border")?.GetComponent<Image>());
+            PanelTheme.Button(_confirm);PanelTheme.Button(_dismiss);
+        }
         // ------------------------------------------------------------- show modes
 
         /// <summary>Plain explanation with a single Close button.</summary>
@@ -138,6 +144,7 @@ namespace Coup.Game.UI
             _body.rectTransform.sizeDelta = new Vector2(860, 700);
             _body.rectTransform.anchoredPosition = new Vector2(0, 120);
             _dismiss.gameObject.SetActive(true);
+            foreach(var button in _sheet.GetComponentsInChildren<Button>(true))PanelTheme.Button(button);
             Open();
         }
 
@@ -168,6 +175,7 @@ namespace Coup.Game.UI
                 _buttons.Add(btn.gameObject);
             }
 
+            foreach(var button in _sheet.GetComponentsInChildren<Button>(true))PanelTheme.Button(button);
             Open();
         }
 
@@ -196,6 +204,7 @@ namespace Coup.Game.UI
             else _dismiss.gameObject.SetActive(true);
 
             RefreshConfirm();
+            foreach(var button in _sheet.GetComponentsInChildren<Button>(true))PanelTheme.Button(button);
             Open();
         }
 

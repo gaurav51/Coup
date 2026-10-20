@@ -1,3 +1,32 @@
+## 2026-10-20 — Claude: HUD bars fit short screens as well as tall (finished)
+
+Follow-up to the tall-display fix, which only engaged when the canvas was
+taller than the Stage.
+
+A 4:3 tablet is the same problem inverted and considerably worse. Measured at
+1536x2048: the canvas comes out 1080x1440, *shorter* than the 1920 Stage, and
+both bars fall outside it entirely — the header above the top edge at 823..948
+against a half-height of 720, the action buttons below the bottom. The game is
+unplayable there; the screenshot showed no header at all and only the
+"CHOOSE AN ACTION" caption with its buttons cut off.
+
+The guard is gone, so the same absolute placement now runs in both directions.
+Verified at both aspects: 4:3 pulls the bars in to 583..708 and -670..-450,
+both on screen; the 2.06 tall case is unchanged at 13 and 50.
+
+Known and not fixed: on 4:3 the action bar now overlaps the lower half of the
+hand and hides the You coin bar. That is inherent — 1920 units of authored
+composition do not fit a 1440 unit canvas, so something has to give, and
+overlapping beats being off screen. Fixing it properly means scaling the Stage
+to fit vertically (0.75 on this aspect) and letterboxing the sides, which also
+touches the seat clamp, since that measures against the unscaled Stage rect.
+
+Added a "Coup Tablet 4:3 (1536x2048)" entry to the Android Game view sizes for
+this, alongside the existing Coup Portrait QA. The view was restored to
+2960x1440 Portrait afterwards.
+
+---
+
 ## 2026-10-20 — Claude: HUD bars hug the screen on tall displays (finished)
 
 Reported at 2960x1440 portrait: the header sat below the top of the screen with

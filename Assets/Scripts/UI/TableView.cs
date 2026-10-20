@@ -1210,6 +1210,12 @@ namespace Coup.Game.UI
         /// and letterboxes it. On a 2.06 aspect that is 150 units of slack at each
         /// end, which left the header sitting below the top of the screen.
         ///
+        /// A short, wide screen is the same problem inverted. A 4:3 tablet gives a
+        /// 1080x1440 canvas, shorter than the Stage, and both bars then fall outside
+        /// it entirely: the header above the top edge and the action buttons below
+        /// the bottom, which leaves the game unplayable. The same placement pulls
+        /// them back in, so it runs in both directions rather than only outward.
+        ///
         /// Each bar is placed absolutely against the canvas edge, keeping the inset
         /// it was authored with. Absolute rather than nudged on purpose: a nudge is
         /// only correct if its starting point is captured exactly once, and running
@@ -1218,7 +1224,7 @@ namespace Coup.Game.UI
         private void FitBarsToScreen() {
             if (_stage == null) return;
             var canvasRect = _stage.GetComponentInParent<Canvas>()?.transform as RectTransform;
-            if (canvasRect == null || canvasRect.rect.height <= _stage.rect.height) return;
+            if (canvasRect == null) return;
             var canvasHalf = canvasRect.rect.height * 0.5f;
             HugEdge(_topBar, canvasHalf, true);
             HugEdge(_actionBar, canvasHalf, false);

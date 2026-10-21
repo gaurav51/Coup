@@ -96,6 +96,7 @@ export class GameServices {
     requireValue(Number.isSafeInteger(quantity) && quantity > 0 && quantity <= 100, 400, "Invalid purchase quantity.");
     const receiptId = `${input.provider}:${verified.transaction}`;
     const result = await this.store.transaction(async (session) => {
+      requireValue(await this.store.collection("accounts").findOne({ _id: accountId }, { session }), 401, "Account no longer exists.");
       const existing = await this.store.collection("receipts").findOne({ _id: receiptId }, { session });
       if (existing) {
         requireValue(existing.accountId === accountId && existing.productId === product.id, 403, "Purchase already belongs to another account or product.");

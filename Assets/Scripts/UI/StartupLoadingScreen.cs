@@ -26,6 +26,7 @@ namespace Coup.Game.UI
             composition.localScale=Vector3.one*Mathf.Min(1,canvas.rect.width/1080f,canvas.rect.height/1920f);
             UIFactory.Text("Overline",composition,"THE COURT AWAITS",26,new Vector2(800,70),new Vector2(0,520)).color=UIFactory.Gold;
             UIFactory.Text("Title",composition,"COUP",132,new Vector2(900,180),new Vector2(0,380));
+            UIFactory.Text("Subtitle",composition,"VEILED COURT",38,new Vector2(800,65),new Vector2(0,265)).color=UIFactory.Gold;
             for(int i=0;i<3;i++) {
                 var back=art.opponentCardBack!=null?art.opponentCardBack:art.cardBack;
                 var card=UIFactory.Image("Card"+i,composition,back,new Vector2(200,300),new Vector2((i-1)*108,40+(i==1?25:0)),true);

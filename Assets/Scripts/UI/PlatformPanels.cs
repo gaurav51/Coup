@@ -210,11 +210,11 @@ namespace Coup.Game.UI
                     var name=Input("Player name",16);name.text=p.Str("name");Button("Save name",async()=>{await _api.Request("PATCH","/v1/profile",JsonValue.FromObject(("name",JsonValue.FromString(name.text))),token);_status.text="Name saved.";});
                     Nav("Account","Account");Nav("Match history","History");Nav("Friends","Friends");break;
                 case "Account":
-                    Text("Keep your progress by linking Google. Guest progress belongs to this device unless linked.",150);
+                    Text("Guest progress is saved on the server. Link Google to recover your account on another device.",150);
                     var capabilities=await Get("/v1/status",token);
                     Button("Continue with Google",()=>Link("google",token),capabilities.Flag("google"));
                     if(!capabilities.Flag("google"))Text("Provider sign-in will become available when the game's registered app credentials are configured.",140);
-                    Button("Sign out",()=>{Show("Sign out");return Task.CompletedTask;});Nav("Sign in to an existing account","Sign in");Nav("Delete account","Delete account");break;
+                    Button("Sign out",()=>{Show("Sign out");return Task.CompletedTask;});Nav("Sign in to an existing account","Sign in");Nav("Privacy and support","Privacy and support");Nav("Delete account","Delete account");break;
                 case "Sign in":
                     Text("Signing in replaces the account on this device. Link your current guest to Google first if you want to keep its progress.",170);
                     var signInCapabilities=await Get("/v1/status",token);
@@ -222,6 +222,14 @@ namespace Coup.Game.UI
                 case "Sign out":
                     Text("Before signing out, link your account to Google. An unlinked guest account cannot be recovered after its credentials are removed.",180);
                     Button("Confirm sign out",async()=>{await _api.SignOut();Close();GetComponent<LoginScreen>().Show();});break;
+                case "Privacy and support":
+                    Text("Publisher: Fiesta games\nSupport and privacy: gaurav5130sharma@gmail.com");
+                    Text("For account access, deletion or a player-safety concern, contact support with your player ID. Never send passwords, sign-in tokens or full payment details.");
+                    Button("Email support",()=>{Application.OpenURL("mailto:gaurav5130sharma@gmail.com");return Task.CompletedTask;});
+                    Button("Deletion instructions in browser",()=>{Application.OpenURL(_api.BaseUrl.TrimEnd('/')+"/support/account-deletion");return Task.CompletedTask;});
+                    Text("Your data export contains personal account information. Copy it only on a trusted device, and clear the clipboard after saving it securely.");
+                    Button("Copy my data export",async()=>{var export=await Get("/v1/account/export",token);GUIUtility.systemCopyBuffer=export.Get("data").Encode();_status.text="Personal data copied. Clear your clipboard after saving it.";});
+                    Nav("Delete account","Delete account");break;
                 case "Delete account":
                     Text("Permanently delete your profile, friends and sign-in sessions. Purchase records may be retained for required store reconciliation. Leave your active table first. This cannot be undone.",240);
                     var confirm=Input("Type DELETE to confirm",6);Button("Permanently delete account",async()=>{if(confirm.text!="DELETE")throw new InvalidOperationException("Type DELETE to confirm.");await _api.Request("DELETE","/v1/account",null,token);_api.Forget();Close();GetComponent<LoginScreen>().Show();});break;
@@ -265,7 +273,7 @@ namespace Coup.Game.UI
                     else Text(item.Str("title")+"\n\n"+item.Str("description"),320);break;
                 case "Settings":
                     Button(AudioListener.volume>0?"Sound: ON":"Sound: OFF",()=>{AudioListener.volume=AudioListener.volume>0?0:1;PlayerPrefs.SetInt("Coup.AudioMuted",AudioListener.volume==0?1:0);PlayerPrefs.Save();Show("Settings");return Task.CompletedTask;});
-                    Nav("Account and privacy","Account");Nav("Friends","Friends");Nav("Match history","History");Nav("Rules","Rules");Nav("Connection status","Connection");break;
+                    Nav("Account and privacy","Account");Nav("Privacy and support","Privacy and support");Nav("Friends","Friends");Nav("Match history","History");Nav("Rules","Rules");Nav("Connection status","Connection");break;
                 case "Connection":
                     await Get("/v1/status",token);Text("Connected to the game server. Your progress and online matches are stored on the server.",150);Button("Refresh connection",()=>{Show("Connection");return Task.CompletedTask;});break;
                 case "Rules":

@@ -1,3 +1,21 @@
+## 2026-10-21 — Codex: selected title and initial privacy implementation
+
+User selected **Coup: Veiled Court**. Set PlayerSettings.productName via Editor;
+login and startup show COUP with VEILED COURT subtitle, OAuth return page uses
+full title. Internal namespaces, IDs and gameplay action names unchanged.
+Name selection is not trademark/licensing clearance. No build produced.
+
+Also present from the preceding interrupted compliance task: Fiesta games support
+contact, public deletion-instructions route, authenticated allowlisted account
+export, pending browser-auth cleanup on deletion and a deleted-account purchase
+guard. Server suite passed 58/58 including export privacy and deletion/purchase
+checks. These are initial fixes; legal notices, age handling, retention, safety,
+provider lifecycles and remaining audit findings are still outstanding. Privacy
+panel opened in Play mode; full visual QA was interrupted. Returned to edit mode
+for title update. Do not treat the broader compliance task as complete.
+
+---
+
 ## 2026-10-21 — Codex: original-game legal risk and competitor audit (finished)
 
 Repository-wide inventory and focused legal-relevant static review for a planned

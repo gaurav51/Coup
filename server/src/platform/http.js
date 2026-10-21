@@ -1,10 +1,12 @@
 import { ApiError, requireValue, displayName } from "./errors.js";
 import { RateLimit } from "./rate-limit.js";
+import { SUPPORT, exportAccount, deletionPage } from "./privacy.js";
 
 export function api(platform) {
   const limits = new RateLimit({ capacity: 60, refillPerSecond: 1 });
   const authLimits = new RateLimit({ capacity: 10, refillPerSecond: .1 });
   return async (req, res) => {
+    if (deletionPage(req, res)) return true;
     const url = new URL(req.url, "http://localhost");
     if (!url.pathname.startsWith("/v1/")) return false;
     // Log route metadata only: OAuth codes, bearer headers and bodies never enter logs.
@@ -33,13 +35,14 @@ export function api(platform) {
         }
         await platform.browser.callback(path.split("/").at(-1), values);
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'", "Referrer-Policy": "no-referrer" });
-        res.end("<!doctype html><title>Coup</title><h1>Return to Coup</h1><p>Continue in the game to finish signing in.</p>");
+        res.end("<!doctype html><title>Coup: Veiled Court</title><h1>Return to Coup: Veiled Court</h1><p>Continue in the game to finish signing in.</p>");
         return true;
       }
       const body = method === "GET" || method === "DELETE" ? {} : await jsonBody(req);
       const auth = async () => platform.accounts.authenticate(String(req.headers.authorization ?? "").replace(/^Bearer /i, ""));
       let result;
-      if (path === "/v1/auth/browser/start" && method === "POST") result = await platform.browser.start(body.provider, body.link ? (await auth()).accountId : null);
+      if (path === "/v1/support" && method === "GET") result = { ...SUPPORT, deletionPath: "/support/account-deletion" };
+      else if (path === "/v1/auth/browser/start" && method === "POST") result = await platform.browser.start(body.provider, body.link ? (await auth()).accountId : null);
       else if (path === "/v1/auth/browser/poll" && method === "POST") result = await platform.browser.poll(body.state, body.pollToken);
       else if (path === "/v1/auth/guest" && method === "POST") result = await platform.accounts.guest(body.name);
       else if (path === "/v1/auth/refresh" && method === "POST") result = await platform.accounts.refresh(body);
@@ -59,10 +62,11 @@ export function api(platform) {
           result = { active: active ? { code: active.code, status: active.status, mode: active.mode } : null };
         }
         else if (path === "/v1/content" && method === "GET") result = { season: platform.content?.season ?? null, event: platform.content?.event ?? null };
+        else if (path === "/v1/account/export" && method === "GET") result = { data: await exportAccount(platform, id) };
         else if (path === "/v1/account" && method === "DELETE") {
           requireValue(!platform.rooms.activeSeat(id), 409, "Leave your active table before deleting your account.");
           await platform.store.transaction(async session => {
-            for (const collection of ["sessions", "identities", "ledger", "friends"]) {
+            for (const collection of ["sessions", "identities", "browserAuth", "ledger", "friends"]) {
               await platform.store.collection(collection).deleteMany(collection === "friends" ? { $or: [{ from: id }, { to: id }] } : { accountId: id }, { session });
             }
             await platform.store.collection("accounts").deleteOne({ _id: id }, { session });

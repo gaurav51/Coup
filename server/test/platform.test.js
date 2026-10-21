@@ -247,6 +247,20 @@ test("HTTP APIs enforce account privacy, friend ownership, account deletion and 
   let socket;
   try {
     assert.equal((await request("GET","/v1/profile")).status,401);
+    assert.equal((await request("GET","/v1/account/export")).status,401);
+    assert.equal((await request("GET","/v1/support")).body.publisher,"Fiesta games");
+    const deletionPage=await fetch(base+"/support/account-deletion");
+    assert.equal(deletionPage.status,200);
+    assert.match(await deletionPage.text(),/gaurav5130sharma@gmail.com/);
+    await store.collection("browserAuth").insertOne({_id:"delete-pending",accountId:b.accountId,idToken:"PRIVATE_ID_TOKEN",expiresAt:new Date(Date.now()+60000)});
+    await store.collection("identities").insertOne({accountId:b.accountId,provider:"test-export",subject:"PRIVATE_PROVIDER_SUBJECT"});
+    await store.collection("receipts").insertOne({_id:"export-receipt",provider:"test-export",transaction:"PRIVATE_TRANSACTION",accountId:b.accountId,productId:"test-product",proof:"PRIVATE_PURCHASE_PROOF",amount:25});
+    const exported=(await request("GET","/v1/account/export",b)).body.data;
+    assert.equal(exported.profile.id,b.accountId);
+    assert.equal(exported.purchases[0].productId,"test-product");
+    const serialized=JSON.stringify(exported);
+    for(const secret of ["PRIVATE_ID_TOKEN","PRIVATE_PROVIDER_SUBJECT","PRIVATE_TRANSACTION","PRIVATE_PURCHASE_PROOF",a.accountId,b.refreshToken]) assert.equal(serialized.includes(secret),false);
+
     assert.equal((await request("POST","/v1/missions/play-one/claim",a,{})).status,409);
     assert.equal((await request("POST","/v1/friends",a,{accountId:b.accountId})).status,200);
     const link=(await request("GET","/v1/friends",b)).body.friends[0];
@@ -262,6 +276,10 @@ test("HTTP APIs enforce account privacy, friend ownership, account deletion and 
     const rejected=await new Promise((resolve,reject)=>socket.timeout(2000).emit("lobby:create",{name:"Invalid"},(err,value)=>err?reject(err):resolve(value)));
     assert.equal(rejected.ok,false);assert.equal(rooms.rooms.size,0);
     assert.equal((await request("DELETE","/v1/account",b)).status,200);
+    assert.equal(await store.collection("browserAuth").countDocuments({accountId:b.accountId}),0);
+    assert.equal(await store.collection("identities").countDocuments({accountId:b.accountId}),0);
+    assert.equal(await store.collection("receipts").countDocuments({accountId:b.accountId}),1);
+
     assert.equal((await request("GET","/v1/profile",b)).status,401);
     assert.equal((await request("GET","/v1/friends",c)).body.friends.length,0);
   } finally { socket?.disconnect(); await new Promise(resolve=>app.io.close(resolve)); await rooms.close(); }
@@ -298,4 +316,14 @@ test("browser sign-in polling requires its secret, expires safely, and is single
   assert.equal(result.accountId,guest.accountId);
   await assert.rejects(browser.poll(started.state,started.pollToken),/expired/);
   assert.equal(new BrowserAuth(store,identity,{}).configured("google"),false);
+});
+
+
+test("a purchase verified after account deletion cannot create receipts or currency", async () => {
+  const a=await accounts.guest("Delete purchase");
+  const services=new GameServices(store,{products:[{id:"delete-gems",currency:"gems",amount:100}],
+    verifyPurchase:async()=>{await store.collection("accounts").deleteOne({_id:a.accountId});return {accountId:a.accountId,transaction:"deleted-purchase"};}});
+  await assert.rejects(services.purchase(a.accountId,{provider:"google",productId:"delete-gems"}),/Account no longer exists/);
+  assert.equal(await store.collection("receipts").countDocuments({_id:"google:deleted-purchase"}),0);
+  assert.equal(await store.collection("ledger").countDocuments({_id:"google:deleted-purchase"}),0);
 });

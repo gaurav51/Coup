@@ -61,7 +61,7 @@ namespace Coup.Game.UI
             composition.localScale=Vector3.one*scale;
             UIFactory.Text("Overline",composition,"THE COURT AWAITS",25,new Vector2(800,60),new Vector2(0,760)).color=UIFactory.Gold;
             UIFactory.Text("Title",composition,"COUP",118,new Vector2(880,170),new Vector2(0,650)).color=UIFactory.Parchment;
-            UIFactory.Text("Caption",composition,"Influence is everything.",34,new Vector2(800,70),new Vector2(0,540),prose:true);
+            UIFactory.Text("Subtitle",composition,"VEILED COURT",38,new Vector2(800,70),new Vector2(0,550)).color=UIFactory.Gold;
             var card=UIFactory.Rect("AccountCard",composition,new Vector2(880,680),new Vector2(0,-470));
             var theme=GetComponent<LobbyScreen>();
             var fill=card.gameObject.AddComponent<Image>();fill.sprite=theme.loginPanel ?? art.roundedPanel;fill.type=Image.Type.Sliced;fill.color=Color.white;PanelTheme.Surface(fill);
@@ -73,11 +73,15 @@ namespace Coup.Game.UI
             UIFactory.Text("Divider",card,"OR",23,new Vector2(700,40),new Vector2(0,-22)).color=new Color(.65f,.62f,.53f);
             _guest=Choice(card,"GuestSignIn","Continue as Guest",-108,UIFactory.Gold,new Color(.13f,.105f,.055f,1));
             _guest.onClick.AddListener(()=>SignIn(false));
-            _status=UIFactory.Text("Status",card,"Guest progress stays on this device until you link Google.",26,new Vector2(740,100),new Vector2(0,-222),prose:true);
+            _status=UIFactory.Text("Status",card,"Guest progress is saved online. Link Google for account recovery.",26,new Vector2(740,100),new Vector2(0,-222),prose:true);
             _status.richText=false;
             _cancel=UIFactory.Button("Cancel",card,null,new Vector2(280,48),new Vector2(0,-302));
             UIFactory.Text("Label",_cancel.transform,"CANCEL",22,new Vector2(270,46),Vector2.zero);
             _cancel.onClick.AddListener(Cancel);_cancel.gameObject.SetActive(false);
+            var support=UIFactory.Button("PrivacySupport",composition,null,new Vector2(780,64),new Vector2(0,-875));
+            UIFactory.Text("Label",support.transform,"FIESTA GAMES · PRIVACY & SUPPORT",23,new Vector2(760,60),Vector2.zero).color=UIFactory.Gold;
+            support.onClick.AddListener(()=>Application.OpenURL(_api.BaseUrl.TrimEnd('/')+"/support/account-deletion"));
+
         }
         private Button Choice(Transform parent,string name,string caption,float y,Color ink,Color fill) {
             var art=GetComponent<LobbyScreen>().art;
@@ -117,7 +121,7 @@ namespace Coup.Game.UI
             catch(Exception error) {if(this!=null&&!token.IsCancellationRequested)_status.text=error is ApiException||error is InvalidOperationException?error.Message:"Could not sign in. Please try again.";}
             finally {if(this!=null&&!token.IsCancellationRequested)Controls(false);}
         }
-        private void Cancel() {_attempt?.Cancel();if(_guest!=null){Controls(false);_status.text="Guest progress stays on this device until you link Google.";}}
+        private void Cancel() {_attempt?.Cancel();if(_guest!=null){Controls(false);_status.text="Guest progress is saved online. Link Google for account recovery.";}}
         private void OnDestroy(){_attempt?.Cancel();_attempt?.Dispose();}
     }
 }

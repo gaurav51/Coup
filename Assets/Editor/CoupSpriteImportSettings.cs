@@ -35,16 +35,15 @@ namespace Coup.EditorTools
             var cap = CapFor(assetPath);
             importer.maxTextureSize = cap;
 
-            // Without an explicit override every platform falls back to the default
-            // block, which ships UI art far larger than it is ever drawn. ASTC 6x6 is
-            // the usual compromise for sprites with alpha.
+            // Fine gold borders and enlarged cards need smaller ASTC blocks on phones.
+            // Keep caps based on the drawn asset; compression must not erase those details.
             foreach (var platform in MobilePlatforms)
             {
                 var settings = importer.GetPlatformTextureSettings(platform);
                 settings.overridden = true;
                 settings.maxTextureSize = cap;
-                settings.format = TextureImporterFormat.ASTC_6x6;
-                settings.compressionQuality = 50;
+                settings.format = TextureImporterFormat.ASTC_4x4;
+                settings.compressionQuality = 100;
                 importer.SetPlatformTextureSettings(settings);
             }
         }
@@ -54,8 +53,7 @@ namespace Coup.EditorTools
         /// <summary>
         /// The import cap for a sprite, chosen from the widest the game ever draws it.
         /// Measured rather than guessed:
-        ///   cards      TableView.SetDisplayWidth(270) is the largest; the modal caps
-        ///              its slot at 250, so 270 is the ceiling.
+        ///   cards      Enlarged mobile hands and previews retain a 1024px long edge.
         ///   callouts   PanelCover clamps banner width to 420. The source art is
         ///              2172 wide, which is over five times what reaches the screen.
         ///   buttons    the action button icon is 74 square in a 136 wide button.
@@ -65,14 +63,14 @@ namespace Coup.EditorTools
         /// </summary>
         private static int CapFor(string path)
         {
-            if (path.Contains("/02_Backgrounds/")) return 2048;   // drawn full screen
+            if (path.Contains("/02_Backgrounds/")) return 4096;   // full-resolution portrait phones
             if (path.Contains("/Actions/")) return 512;
-            if (path.Contains("/04_Characters_And_Art_Reference/")) return 512;
-            if (path.Contains("/Cards/")) return 512;
+            if (path.Contains("/04_Characters_And_Art_Reference/")) return 1024;
+            if (path.Contains("/Cards/")) return 1024;
             if (path.Contains("/Buttons/")) return 256;
             if (path.Contains("/Coins/")) return 256;
-            if (path.Contains("/HUD/")) return 512;
-            if (path.Contains("/Panels/")) return 512;
+            if (path.Contains("/HUD/")) return 1024;
+            if (path.Contains("/Panels/")) return 1024;
             return 1024;                                          // anything unsorted
         }
 

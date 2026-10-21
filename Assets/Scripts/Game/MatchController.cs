@@ -156,7 +156,7 @@ namespace Coup.Game
             _online?.Dispose();
             _online = null;
             Game = null;
-            SceneManager.LoadScene(MatchLaunch.LobbyScene);
+            Coup.Game.UI.ScreenTransition.Load(MatchLaunch.LobbyScene);
         }
 
         public void ShowServerState(JsonValue state, List<JsonValue> openingLog)

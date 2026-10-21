@@ -12,7 +12,8 @@ namespace Coup.Game.UI
             foreach (var name in new[] { "FriendsSheet", "InformationSheet" }) {
                 var sheet=transform.Find(name); if(sheet!=null)sheet.gameObject.SetActive(false);
             }
-            AudioListener.volume=PlayerPrefs.GetInt("Coup.AudioMuted",0)==1?0f:1f;
+            if(GetComponent<LobbyResponsiveLayout>()==null)gameObject.AddComponent<LobbyResponsiveLayout>();
+            AudioDirector.Ensure();   // boots the mix and starts the lobby theme
             if(GetComponent<LoginScreen>()==null)gameObject.AddComponent<LoginScreen>();
             if(GetComponent<PlatformPanels>()==null)gameObject.AddComponent<PlatformPanels>();
             if(GetComponent<LobbyMotion>()==null)gameObject.AddComponent<LobbyMotion>();

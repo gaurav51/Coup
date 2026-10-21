@@ -132,6 +132,11 @@ namespace Coup.Game.UI
             colors.fadeDuration = 0.08f;
             btn.colors = colors;
 
+            // Every code-built button answers the pointer. Added at play time only, so
+            // running the scene builder does not write the component into the authored
+            // hierarchy; the director picks those up with a pass after the scene loads.
+            if (Application.isPlaying) rt.gameObject.AddComponent<UiClickSound>();
+
             return btn;
         }
 

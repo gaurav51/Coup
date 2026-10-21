@@ -1,3 +1,212 @@
+## 2026-10-21 — Codex: panel and screen transitions (finished)
+
+Added PanelTransition: .24s fade/scale entrance and .16s dismissal for
+PlatformPanels and ModalPanel. Preserves authored anchors, positions and resting
+scale, blocks backdrop clicks while dismissing, disables panel controls during
+motion, and cancels interrupted motion safely. Existing async panel-load
+cancellation remains intact. No prefab/scene regeneration or YAML edits.
+
+Added persistent ScreenTransition overlay: .22s navy fade out/in around async
+Lobby/Game navigation, including MatchController.ReturnToLobby. Duplicate scene
+requests are ignored while loading; cover intercepts pointer input and releases
+it after the destination layout pass. Both helpers use unscaled time and honor
+Coup.ReducedMotion. Existing GameOverPanel presentation remains in place.
+
+Play-mode verification: panel alpha=1/input=true after opening; close/reopen
+Settings finishes active at scale(1,1,1), alpha=1/input=true; dismissal deactivates
+root. Modal opens/reopens while timeScale=0. Reduced-motion panel opens and hides
+immediately (original preference restored). Lobby -> Game -> Lobby completes,
+scene cover blocksRaycasts=false / IsTransitioning=false afterward. Duplicate
+Game request tested. Console: zero errors on final check. Native 1440x2560
+capture Captures/Panel_Transitions_Verified.png inspected for resting layout.
+Stopped Play mode in Lobby. No APK rebuilt for this change; previous APK does
+not include these transitions. Phone verification remains pending.
+
+## 2026-10-21 — Codex: larger mobile table, texture quality, final APK
+
+User confirmed Codex has the Editor. Implemented mobile presentation changes,
+including follow-up fixes from user screenshots. This supersedes the earlier
+verification-pending entry for the code/build work; sustained device FPS testing
+is still incomplete because the phone disconnected.
+
+TableResponsiveLayout initializes in Awake before opening animations, stretches
+Stage to safe area and uses width-based scaling. Actions form a 4+3 grid with
+238x180 buttons and larger labels/effects. Response buttons are 320x190, with
+stretch borders matching fills. Hand, HUD, status and action/response bands use
+bottom anchors; opponent panels use top anchors. Player labels/coins enlarged.
+HUD shifted to retain the portrait inside the screen. Gameplay prefabs untouched.
+
+Draw/discard piles use a central corridor on crowded tables, with the coin pile
+above. Compact screens use smaller decorative piles/captions and omit the coin
+pile; duels put piles outside the single opponent's card columns. An occupied
+180px-wide discard-card fixture and draw-deck bounds were checked against
+opponent CardView bounds for 2–6 players at 1080x1920: zero intersections in the
+final check. Earlier 1080x2400 checks also returned zero for all seat counts.
+Verified deck remains at .45 scale after opening animations on compact screens;
+initializing layout late could otherwise restore the old .75 scale.
+
+Authored Game scene saved through Editor: DockBackground/DockBorder stretch,
+left/right 0, top/bottom -10, pivot .5/.5, scale 1 per user screenshot. Response
+border children also stretch with zero offsets. Runtime layout repeats these
+constraints. Screenshot Response_Buttons_Fit_Final.png shows aligned fills and
+outlines; Table_Response_BG_Final.png shows occupied discard clear of opponents
+and the inset grid background (captured during opening card animation).
+
+Texture importer now uses ASTC 4x4 / quality 100 on Android/iOS; card long-edge
+cap 1024, HUD/panel 1024, backgrounds 4096 maximum. Reimported 76 referenced PNG/
+JPG dependencies through AssetDatabase. Captain Android override read back 1024,
+ASTC_4x4, quality 100. Mobile_RPAsset renderScale changed .8 -> 1; PC asset also
+set to 1 for parity. Source imagery is not upscaled by these caps. Clean coin and
+extended lobby v7 art are included. Do not hand-edit .meta files.
+
+MobileFrameRate startup requests 60 FPS with renderFrameInterval=1; Android frame
+pacing enabled. Earlier USB-installed revision produced a short SurfaceFlinger
+sample: 125 intervals, median/mean 16.65ms, about 60.1 FPS. This is not sustained
+proof; later longer attempts had no active timestamps while phone slept, then
+USB disconnected. Thermal-service status was 0 during that check. Do not claim
+sustained 60 FPS or latest-revision phone visual verification.
+
+Final non-development Android build succeeded at 23:16 IST, job
+build-d4b7c12647: zero errors, 18 warnings, APK about 65 MiB at
+Builds/Coup-Veiled-Court-Mobile.apk. This final APK was NOT installed: adb device
+list is empty. An earlier revision was installed with adb install -r, preserving
+data; it predates the last pile/background/texture fixes. User can reconnect for
+installation/profiling, or install the delivered APK manually. Editor left in
+edit mode. Broader legal/compliance work remains incomplete and separate.
+
+---
+
+## 2026-10-21 — Claude Code: in-game audio, synthesised in the editor (finished)
+
+User asked for audio in the game; there was none — no clips anywhere, and the
+only trace of sound was a Coup.AudioMuted pref driving AudioListener.volume from
+the lobby settings row. Built the whole layer.
+
+The fal audio provider is **not configured** (generate_audio list_providers
+reports configured: false), so no AI-generated audio was available. Sound is
+synthesised in the editor instead, the way the card art is: **Coup/Generate
+Audio** (CoupAudioGenerator.cs) bakes 38 WAVs into Assets/Audio and fills
+Assets/Resources/CoupAudio.asset. The recipes in that file are the master; the
+WAVs are build output. Re-tune a number, run the menu item again. A generated
+take can be swapped for a recording later by dropping it into the library.
+
+Runtime: CoupAudio (clip library, shaped like CoupArt — per-cue takes, gain and
+pitch spread), AudioDirector (boots itself before the first scene, 12 pooled
+voices, two music channels with a 1.1s crossfade, owns the AudioListener when a
+scene ships none), Sfx (the static facade every caller uses), UiClickSound.
+
+26 cues: interface, cards and coins, turn order, one per ActionKind, block /
+challenge / won / lost, influence lost, elimination, victory, defeat. Two music
+loops — a four-bar lute figure over Dm–Bb–F–A for the lobby, a drone and pulse
+for the table. Both loops fold their reverb tail onto the head, so the seam is
+continuous (measured: 0.001 and 0.0036 against a mean sample step of 0.0017).
+
+Hooks: TableView.PlayBeat gives every rules event a cue, PlayOpening stages the
+deal and the coin collect, and UIFactory.Button attaches a click sound at play
+time only — never serialised, so no prefab or scene was rebuilt. Authored
+buttons are picked up by a pass when the active scene changes. The lobby
+settings row now has separate Sound and Music toggles.
+
+Assets/Editor/CoupAudioImportSettings.cs is the audio twin of the sprite
+postprocessor: cues decompress-on-load mono ADPCM, themes stream as Vorbis, with
+Android/iPhone overrides. Drop a clip in Assets/Audio and it is configured on
+arrival. Do not hand-edit the .meta files.
+
+Verified in Play mode: lobby theme loops at 0.34, crossfades to the table theme
+on scene load, all 35 lobby selectables bound, exactly one listener live, every
+cue resolves to a clip, 12 cues fired at once took 12 distinct voices with the
+right gains and pitch variation, and master output measured non-zero through
+AudioListener.GetOutputData. Console zero errors. Offline practice match played
+through Tax, a lost challenge and an influence loss with the matching cues.
+
+Not done: nobody has listened to these on a device, and the mix is judged by
+waveform analysis and by ear-free measurement only — levels may want another
+pass once heard on a phone. No build produced. Assets/Audio is 9.3 MB of source
+WAV; it compresses on import and is not the shipped size.
+
+One coordination note: the Editor was in Play mode when this session started and
+the last REVIEW entry read finished, so I took it and exited Play mode at 22:09
+to run the generator. Single_Gold_Coin.png, Assets/Scripts/Runtime/MobileFrameRate.cs
+and TableResponsiveLayout.cs changed on disk at 22:04-22:08 from outside this
+session; none of them were touched here.
+
+---
+
+## 2026-10-21 — Codex: tall-phone layout / 60 FPS — verification pending
+
+Source changes ready, but Editor testing is NOT finished. Play mode repeatedly
+stopped between tool calls while new audio code appeared, so asked user to clarify
+which agent has the Editor. Awaiting that answer before further Editor driving
+or building. Do not concurrently mutate Editor.
+
+- Lobby: edge anchors, width-based CanvasScaler, safe-area header/actions and logo
+  placement via LobbyResponsiveLayout. Generated extended 9:21 background v7
+  (821x1916), imported and saved into authored Lobby via Editor as separate
+  EnvelopeParent child so logo parent retains full canvas bounds. This replaces
+  the interim aspect-fit version that showed navy top/bottom bars. Tall render
+  bounds measured 1080x2520 covering 1080x2400. Final visual QA interrupted.
+- Coin: replaced Single_Gold_Coin.png with clean transparent generated coin,
+  preserving GUID/references, reimported through Editor. Gameplay/device preview
+  still pending. No hand-edited metadata.
+- Table: TableResponsiveLayout stretches Stage to safe area, pins hand/HUD/status/
+  response/action bands from bottom and raises/separates three-opponent layout.
+  TableView records seats before converting them to top anchors. Not yet visually
+  verified across seat counts; no claim this fixes every overlap.
+- Performance: discovered targetFrameRate=-1, added MobileFrameRate startup target
+  60 and OnDemandRendering interval=1. Android optimized frame pacing enabled.
+  Connected phone detected (com.gauravbs.coup installed at 22:00). SurfaceFlinger
+  latency query returned no samples; sustained device FPS not measured. No new
+  APK built/installed for these fixes.
+- Fixed compile blocker in new CoupAudioImportSettings: preloadAudioData moved to
+  default/override sample settings for Unity 6. Latest console read zero errors.
+  Preserved the concurrently added audio work otherwise.
+- Multiplayer host was running but readiness failed. Gracefully restarted managed
+  stack; public /ready passed. scripts/check-host.mjs passed sign-in, protected
+  HTTP/WebSocket, match start, refresh, reconnect/private hand recovery and logout.
+  URL https://curable-twistable-rising.ngrok-free.dev; Mac must stay awake/online.
+
+Required next: obtain Editor turn, compile check, test reference/tall UI and
+2–6-player tables, produce APK, then install/profile on connected phone if user
+wants current device session replaced. Existing installed build is still older.
+
+---
+
+## 2026-10-21 — Codex: approved brand logo and launcher icons (finished)
+
+User approved generated COUP / VEILED COURT custom brand mark. Imported into
+Assets/Sprites/Branding/Coup_Veiled_Court_Logo.png and replaced prior TMP title
+composition on Hall/LobbyLogo via Editor. This explicitly requested brand-logo
+art includes lettering; gameplay text remains unchanged. Play preview verified
+at 1080x1920, screenshot Assets/Screenshots/Lobby_Brand_Logo_Final.png; no errors.
+
+Created matching crowned-mask launcher icon, default icon and iOS application
+icon slots assigned through PlayerSettings. Android adaptive icons now have
+separate navy background and transparent emblem foreground at all six sizes
+432,324,216,162,108,81. Initially flat icon assignment left foreground missing;
+user screenshot caught this during setup. Replaced with two-layer assets and
+read back every slot: both textures present at all sizes, console zero errors.
+Settings saved; Editor returned to edit mode. No APK/iOS build or physical-device
+launcher verification claimed. Generated originals remain in Codex image folder;
+project assets copied under Assets/Sprites/Branding with automatic import settings.
+
+---
+
+## 2026-10-21 — Codex: lobby cards replaced with refined wordmark (finished)
+
+User redirected card-art replacement to a COUP logo. Removed the three lobby
+card instances through the Editor, retaining character art elsewhere. Replaced
+with editable TMP COUP / VEILED COURT in Cinzel, champagne-gold gradient, small
+diamond and hairline gold rules on a restrained navy backing. Removed the first
+iteration's bulky black shadow and crown after user feedback. LobbyMotion now
+targets Hall/LobbyLogo. Scene saved through Editor; no prefab source rebuilt.
+
+Verified in Play mode at 1080x1920, no console errors. Final screenshot:
+Assets/Screenshots/Lobby_Logo_Refined.png. Returned to edit mode. Initial generated
+card fan was superseded by user's request and was not imported or wired.
+No APK build. Existing compliance work remains separate and incomplete.
+
+---
+
 ## 2026-10-21 — Codex: selected title and initial privacy implementation
 
 User selected **Coup: Veiled Court**. Set PlayerSettings.productName via Editor;

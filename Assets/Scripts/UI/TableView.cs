@@ -100,6 +100,8 @@ namespace Coup.Game.UI
                 BindScene();
 
             UIFactory.ApplyFonts(transform);
+            Sfx.BindClicks(transform);
+            if (GetComponent<TableResponsiveLayout>() == null) gameObject.AddComponent<TableResponsiveLayout>();
 
             if (match != null)
             {
@@ -307,14 +309,14 @@ namespace Coup.Game.UI
         {
             switch (opponents)
             {
-                case 1: return new[] { new SeatSpot(0f, 600f, 1f) };
+                case 1: return new[] { new SeatSpot(0f, 710f, .9f) };
                 case 2: return new[] { new SeatSpot(-300f, 560f, 0.92f), new SeatSpot(300f, 560f, 0.92f) };
                 case 3:
                     return new[]
                     {
-                        new SeatSpot(-400f, 500f, 0.82f),
-                        new SeatSpot(0f, 630f, 0.88f),
-                        new SeatSpot(400f, 500f, 0.82f)
+                        new SeatSpot(-330f, 500f, 0.68f),
+                        new SeatSpot(0f, 745f, 0.64f),
+                        new SeatSpot(330f, 500f, 0.68f)
                     };
                 case 4:
                     return new[]
@@ -621,6 +623,8 @@ namespace Coup.Game.UI
                     if(index>=seats.Count)continue;
                     if(seats.Count==_panels.Count) { rect.anchoredPosition=_authoredSeatPositions[panel];rect.localScale=_authoredSeatScales[panel]; }
                     else { rect.anchoredPosition=spots[index].Position;rect.localScale=Vector3.one*spots[index].Scale; }
+                    rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1);
+                    rect.anchoredPosition -= new Vector2(0, 960);
                     panel.SetSeatScale(rect.localScale.x);
                 }
                 if (seats.Count != _panels.Count) {
@@ -1280,8 +1284,18 @@ namespace Coup.Game.UI
         private void OnActionClicked(ActionKind kind)
         {
             var game = match?.Game;
-            if (game == null || game.Phase != GamePhase.AwaitingAction) return;
-            if (game.CurrentPlayerIndex != match.humanSeat) return;
+            if (game == null || game.Phase != GamePhase.AwaitingAction)
+            {
+                Sfx.Play(Cue.UiDenied, volume: 0.5f);
+                return;
+            }
+            if (game.CurrentPlayerIndex != match.humanSeat)
+            {
+                Sfx.Play(Cue.UiDenied, volume: 0.5f);
+                return;
+            }
+
+            Sfx.Play(Cue.UiClick);
 
             if (Rules.RequiresTarget(kind))
             {
@@ -1297,6 +1311,7 @@ namespace Coup.Game.UI
         private void OnOpponentClicked(PlayerPanelView panel)
         {
             if (!_awaitingTarget.HasValue) return;
+            Sfx.Play(Cue.UiClick);
             var kind = _awaitingTarget.Value;
             _awaitingTarget = null;
             match.HumanDeclare(kind, panel.Seat);
@@ -1308,6 +1323,7 @@ namespace Coup.Game.UI
             if (game == null || game.Phase != GamePhase.AwaitingInfluenceLoss) return;
             if (game.PendingLoserIndex != match.humanSeat || !card.Role.HasValue) return;
 
+            Sfx.Play(Cue.CardSlam);
             card.PlayLost();
             match.HumanLoseInfluence(card.Role.Value);
         }
@@ -1696,26 +1712,52 @@ namespace Coup.Game.UI
             return home + inward.normalized * 120f;
         }
 
+        /// <summary>The sound each action is announced with. Silent for an unmapped kind.</summary>
+        private static Cue CueFor(ActionKind action) => action switch
+        {
+            ActionKind.Income => Cue.Income,
+            ActionKind.ForeignAid => Cue.ForeignAid,
+            ActionKind.Tax => Cue.Tax,
+            ActionKind.Steal => Cue.Steal,
+            ActionKind.Assassinate => Cue.Assassinate,
+            ActionKind.Exchange => Cue.Exchange,
+            ActionKind.Coup => Cue.Coup,
+            _ => Cue.None
+        };
+
         /// <summary>Gives each rules event a matching piece of stagecraft.</summary>
         private void PlayBeat(GameEvent e)
         {
             switch (e.Kind)
             {
+                case GameEventKind.TurnStarted:
+                    Sfx.Play(e.PlayerIndex == match.humanSeat ? Cue.TurnYours : Cue.TurnOther);
+                    break;
+
                 case GameEventKind.ChallengeDeclared:
+                    Sfx.Play(Cue.Challenge);
                     PlayClash(e);
                     break;
 
                 case GameEventKind.ChallengeWon:
+                    Sfx.Play(Cue.CardFlip);
+                    Sfx.PlayDelayed(Cue.ChallengeWon, 0.08f);
                     if (e.Role.HasValue) ShowTheirCard(e.PlayerIndex, e.Role.Value, swap: true);
                     _vfx.Burst(SeatPosition(e.PlayerIndex), new Color(1f, 0.85f, 0.4f, 1f), 18);
                     break;
 
+                case GameEventKind.ChallengeLost:
+                    Sfx.Play(Cue.ChallengeLost);
+                    break;
+
                 case GameEventKind.ActionDeclared:
+                    if (e.Action.HasValue) Sfx.Play(CueFor(e.Action.Value));
                     PlayActionFeel(e);
                     ShowActionBanner(e);
                     break;
 
                 case GameEventKind.BlockDeclared:
+                    Sfx.Play(Cue.Block);
                     PlayBlockFeel(e);
                     ShowRoleBanner(e);
                     break;
@@ -1726,15 +1768,18 @@ namespace Coup.Game.UI
                     break;
 
                 case GameEventKind.ActionFailed:
+                    Sfx.Play(Cue.UiDenied, 0.85f, 0.7f);
                     if (_vfx != null) _vfx.ReleaseAssassination(false, 0.05f);
                     break;
 
                 case GameEventKind.ExchangeCompleted:
+                    Sfx.Play(Cue.Shuffle);
                     AmbassadorFeel(e.PlayerIndex);
                     break;
 
                 case GameEventKind.InfluenceLost:
                 {
+                    Sfx.Play(Cue.InfluenceLost);
                     ShowInfluenceLostBanner(e);
                     var panel = _panels.FirstOrDefault(p => p.Seat == e.PlayerIndex);
                     if (panel != null) CoupTween.Shake(panel.root, 14f, CoupTween.Slow);
@@ -1750,12 +1795,14 @@ namespace Coup.Game.UI
                 }
 
                 case GameEventKind.PlayerEliminated:
+                    Sfx.Play(Cue.Eliminated);
                     _vfx.Flash(new Color(0.05f, 0.02f, 0.04f, 0.5f), 0.5f);
                     _vfx.Burst(SeatPosition(e.PlayerIndex), new Color(0.8f, 0.2f, 0.2f, 1f), 28, 620f);
                     break;
 
                 case GameEventKind.CoinsChanged:
                 {
+                    if (e.Amount != 0) Sfx.Play(e.Amount > 0 ? Cue.CoinGain : Cue.CoinPay);
                     if (e.Amount > 0) PlayCoinGain(e.PlayerIndex, e.Amount);
                     else if (e.Amount < 0) PlayBootCollect(e.PlayerIndex, -e.Amount);
                     if (e.PlayerIndex == match.humanSeat && _hudCoins != null)
@@ -1764,6 +1811,7 @@ namespace Coup.Game.UI
                 }
 
                 case GameEventKind.GameOver:
+                    Sfx.Play(e.PlayerIndex == match.humanSeat ? Cue.Victory : Cue.Defeat);
                     _vfx.Victory(SeatPosition(e.PlayerIndex));
                     CoupTween.DelayedCall(1.55f, () => ShowGameOver(e.PlayerIndex));
                     break;
@@ -1842,6 +1890,7 @@ namespace Coup.Game.UI
 
             var game = match.Game;
             _openingPlayed = true;
+            Sfx.Play(Cue.Shuffle);
 
             var deckWorld = _deckRect.TransformPoint(Vector3.zero);
             var dealt = 0;
@@ -1867,6 +1916,7 @@ namespace Coup.Game.UI
                     }
 
                     card.BeginDeal(from, dest, dealt * 0.09f, reveal, role);
+                    Sfx.PlayDelayed(Cue.CardDeal, dealt * 0.09f, volume: 0.8f);
                     dealt++;
                 }
             }
@@ -1878,6 +1928,7 @@ namespace Coup.Game.UI
                 var coins = game.Players[seat].Coins;
                 if (coins <= 0) continue;
                 _vfx.CoinFly(pile, CoinPosition(seat), coins, 0.2f + seat * 0.14f);
+                Sfx.PlayDelayed(Cue.CoinGain, 0.45f + seat * 0.14f, volume: 0.7f);
             }
         }
 

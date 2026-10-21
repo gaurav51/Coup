@@ -100,16 +100,16 @@ namespace Coup.Game.UI
                 profile.anchoredPosition = new Vector2(-160f, 0f);
                 profile.sizeDelta = new Vector2(160f, 160f);
             }
-            Place(nameText, Local(25f), new Vector2(52f, -43f), new Vector2(245f, 52f));
+            Place(nameText, Local(34f), new Vector2(52f, -43f), new Vector2(245f, 52f));
             if (nameText != null)
             {
                 nameText.enableAutoSizing = true;
-                nameText.fontSizeMin = Local(18f);
-                nameText.fontSizeMax = Local(25f);
+                nameText.fontSizeMin = Local(24f);
+                nameText.fontSizeMax = Local(34f);
                 nameText.alignment = TextAlignmentOptions.Left;
                 nameText.overflowMode = TextOverflowModes.Ellipsis;
             }
-            Place(coinText, Local(31f), new Vector2(52f, -107f), new Vector2(245f, 64f));
+            Place(coinText, Local(38f), new Vector2(52f, -107f), new Vector2(245f, 64f));
             if (coinText != null) { coinText.alignment = TextAlignmentOptions.Left; coinText.color = Color.white; }
             if (avatarInitial != null) avatarInitial.enabled = false;
             if (claimBadge != null) claimBadge.SetActive(false);

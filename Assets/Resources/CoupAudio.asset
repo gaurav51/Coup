@@ -1,0 +1,160 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc6347d9be94640e19388ec81c0c4b15, type: 3}
+  m_Name: CoupAudio
+  m_EditorClassIdentifier: Coup.Client::Coup.Game.CoupAudio
+  cues:
+  - cue: 1
+    takes:
+    - {fileID: 8300000, guid: a3902594804ef4b40bf993ec0c054a66, type: 3}
+    - {fileID: 8300000, guid: 8817d9a83a5a54ca482bcae5d585bfe7, type: 3}
+    - {fileID: 8300000, guid: 8c55e5682ac4446fba07b4792c574956, type: 3}
+    gain: 0.15593502
+    pitchSpread: 0.6
+  - cue: 2
+    takes:
+    - {fileID: 8300000, guid: d56fe5a6d758a45aa961a6968d743f77, type: 3}
+    gain: 0.3753123
+    pitchSpread: 0
+  - cue: 3
+    takes:
+    - {fileID: 8300000, guid: f98c249da69554be09c361c3e4dfc6ac, type: 3}
+    gain: 0.13882849
+    pitchSpread: 0
+  - cue: 4
+    takes:
+    - {fileID: 8300000, guid: 9bf951d166264485e998a8ca88d7eff7, type: 3}
+    - {fileID: 8300000, guid: 6102f20b53860472ca9fdb11020730cd, type: 3}
+    - {fileID: 8300000, guid: b78d3188b9c3e455b8a76c164e3e2674, type: 3}
+    gain: 0.44337767
+    pitchSpread: 1.1
+  - cue: 5
+    takes:
+    - {fileID: 8300000, guid: 06b8f24af0bfc438093bc8bc4e3e6cb2, type: 3}
+    - {fileID: 8300000, guid: 9c03d089b03d046ebba1f25d5d42943d, type: 3}
+    gain: 0.49089482
+    pitchSpread: 0.9
+  - cue: 6
+    takes:
+    - {fileID: 8300000, guid: 6c156422d9f3945f09833bd916aec04e, type: 3}
+    - {fileID: 8300000, guid: f824fd069d7cf4933a216e69c3aad7b6, type: 3}
+    gain: 0.75245255
+    pitchSpread: 1.1
+  - cue: 7
+    takes:
+    - {fileID: 8300000, guid: bb7258750e6da43c18ce63304c4df4f5, type: 3}
+    - {fileID: 8300000, guid: 6b10c62b3f81f41f6adcbe5807e81744, type: 3}
+    gain: 0.3187659
+    pitchSpread: 0.6
+  - cue: 8
+    takes:
+    - {fileID: 8300000, guid: 63697c1837e3b4196973163309587d3f, type: 3}
+    - {fileID: 8300000, guid: 68c8f3743e18743c1b6dd850597dc2bc, type: 3}
+    - {fileID: 8300000, guid: c64156234a4d342a49ba02c18718cef1, type: 3}
+    gain: 0.6360967
+    pitchSpread: 0.9
+  - cue: 9
+    takes:
+    - {fileID: 8300000, guid: 35be9ca9db4474b9aadb6b538bb4a360, type: 3}
+    - {fileID: 8300000, guid: 644cceec01eeb4166bbec479af1de0c0, type: 3}
+    - {fileID: 8300000, guid: 1ffc9c54d7d234279b52cdc3e3f5a334, type: 3}
+    gain: 0.6352093
+    pitchSpread: 0.9
+  - cue: 10
+    takes:
+    - {fileID: 8300000, guid: 698b940ae57f64489af2487259c2363f, type: 3}
+    gain: 0.3391068
+    pitchSpread: 0
+  - cue: 11
+    takes:
+    - {fileID: 8300000, guid: 57fa413e97d254241ac51a4ad594aafe, type: 3}
+    gain: 0.071740784
+    pitchSpread: 0
+  - cue: 12
+    takes:
+    - {fileID: 8300000, guid: a14b3ebfb58564162ab372c6765d015c, type: 3}
+    gain: 0.7336169
+    pitchSpread: 0.5
+  - cue: 13
+    takes:
+    - {fileID: 8300000, guid: 008db75a6bda041f585c34a5d0a4349a, type: 3}
+    gain: 0.97385025
+    pitchSpread: 0.5
+  - cue: 14
+    takes:
+    - {fileID: 8300000, guid: 1f5083c358a9748af98b802597ecca64, type: 3}
+    gain: 0.99729997
+    pitchSpread: 0
+  - cue: 15
+    takes:
+    - {fileID: 8300000, guid: 37bbb144887dd45ccbf55756f62ea984, type: 3}
+    gain: 0.99999994
+    pitchSpread: 0.5
+  - cue: 16
+    takes:
+    - {fileID: 8300000, guid: 812a5205358f8402c8df8d87b18c54d1, type: 3}
+    gain: 0.37382296
+    pitchSpread: 0
+  - cue: 17
+    takes:
+    - {fileID: 8300000, guid: 5033e9d314816483287a25f42b1b3c06, type: 3}
+    gain: 0.22912863
+    pitchSpread: 0
+  - cue: 18
+    takes:
+    - {fileID: 8300000, guid: af6ec6da731504034a644e5e2d9df379, type: 3}
+    gain: 0.66065955
+    pitchSpread: 0
+  - cue: 19
+    takes:
+    - {fileID: 8300000, guid: 88c43410b0fc3464481142d2c5088186, type: 3}
+    gain: 0.3897484
+    pitchSpread: 0
+  - cue: 20
+    takes:
+    - {fileID: 8300000, guid: f897ef36c8b6d4546896c27f76e2ad36, type: 3}
+    gain: 0.20943053
+    pitchSpread: 0
+  - cue: 21
+    takes:
+    - {fileID: 8300000, guid: 9fcee9ebaba134dfcbc9cc34a66f69d7, type: 3}
+    gain: 0.17048785
+    pitchSpread: 0
+  - cue: 22
+    takes:
+    - {fileID: 8300000, guid: 2bb1423c9d5d14345b207774df656fe3, type: 3}
+    gain: 0.1561715
+    pitchSpread: 0
+  - cue: 23
+    takes:
+    - {fileID: 8300000, guid: 77b0c52358c9f46d880e5986d49ccb52, type: 3}
+    gain: 0.44653624
+    pitchSpread: 0
+  - cue: 24
+    takes:
+    - {fileID: 8300000, guid: 8d84b19a63f6e4815985ab71c3156628, type: 3}
+    gain: 0.60425264
+    pitchSpread: 0
+  - cue: 25
+    takes:
+    - {fileID: 8300000, guid: 0eacb5eb31301447f8570d80b657ddcb, type: 3}
+    gain: 0.25423568
+    pitchSpread: 0
+  - cue: 26
+    takes:
+    - {fileID: 8300000, guid: 8a68d2ed85df14ec8b5cae4ae606142f, type: 3}
+    gain: 0.18396533
+    pitchSpread: 0
+  lobbyTheme: {fileID: 8300000, guid: 5c2aa53db21684d048865a22b1354b4b, type: 3}
+  tableTheme: {fileID: 8300000, guid: 62b120f7f6c2d4a768ded63010fc4cd9, type: 3}
+  sfxVolume: 0.85
+  musicVolume: 0.34

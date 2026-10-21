@@ -340,19 +340,14 @@ namespace Coup.Game.UI
             _epoch++;
             _open = true;
             _root.gameObject.SetActive(true);
-            CoupTween.PopIn(_sheet, _group, CoupTween.Normal);
+            PanelTransition.For(_root.gameObject, _sheet).Show();
         }
 
         public void Hide()
         {
             if (_root == null || !_open) return;
             _open = false;
-            var epoch = _epoch;
-            CoupTween.Fade(_group, 0f, CoupTween.Quick, () =>
-            {
-                if (epoch != _epoch || _open || _root == null) return;
-                _root.gameObject.SetActive(false);
-            });
+            PanelTransition.For(_root.gameObject, _sheet).Hide();
         }
     }
 }

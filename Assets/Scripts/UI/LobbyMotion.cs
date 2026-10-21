@@ -27,7 +27,7 @@ namespace Coup.Game.UI
             _login = GetComponent<LoginScreen>();
             _panels = GetComponent<PlatformPanels>();
             Add("Hud", 0f, 14f);
-            Add("Hall/CurrentGameCards", .08f, -12f, floating: true);
+            Add("Hall/LobbyLogo", .08f, -12f, floating: true);
             Add("Actions/SeasonPass", .12f, -16f);
             Add("Actions/RankedTier", .17f, -16f);
             Add("Actions/Play", .22f, -22f, pulse: true);
@@ -52,6 +52,13 @@ namespace Coup.Game.UI
             _items.Add(new Item { rect = rect, position = rect.anchoredPosition,
                 scale = rect.localScale, group = UIFactory.Group(rect.gameObject), feedback = feedback,
                 delay = delay, offset = offset, pulse = pulse, floating = floating });
+        }
+
+        public void SetRestingPosition(RectTransform rect, Vector2 position)
+        {
+            foreach (var item in _items)
+                if (item.rect == rect) { item.position = position; break; }
+            rect.anchoredPosition = position;
         }
 
         private void LateUpdate()

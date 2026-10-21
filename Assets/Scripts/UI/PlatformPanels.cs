@@ -30,7 +30,7 @@ namespace Coup.Game.UI
         private Storefront _store;
         private string _storeStatus;
         public string CurrentPage => _page;
-        public bool IsOpen => _root != null && _root.activeSelf;
+        public bool IsOpen => _page != null;
         private void Awake() {
             _api = PlatformClient.Instance; _api.Changed += UpdateHeader;
             _art = GetComponent<LobbyScreen>().art;
@@ -141,12 +141,12 @@ namespace Coup.Game.UI
             if(_close!=null)_close.anchoredPosition=new Vector2(0,-h/2+72);
         }
         private static void Stretch(RectTransform t) { t.anchorMin=Vector2.zero;t.anchorMax=Vector2.one;t.offsetMin=t.offsetMax=Vector2.zero; }
-        public void Close() { _view.Cancel(); _root.SetActive(false);_busy=false;_page=null; }
+        public void Close() { _view.Cancel(); PanelTransition.For(_root,_card).Hide();_busy=false;_page=null; }
         public async void Show(string page) {
             _view.Cancel();_view.Dispose();_view=new CancellationTokenSource();var cancellation=_view.Token;
             _page=page;_busy=false;
             foreach(var old in new[]{"InformationSheet","FriendsSheet"}) {var t=transform.Find(old);if(t!=null)t.gameObject.SetActive(false);}
-            _root.SetActive(true);_root.transform.SetAsLastSibling();Clear();_title.text=page.ToUpperInvariant();_status.text="Loading…";
+            PanelTransition.For(_root,_card).Show();_root.transform.SetAsLastSibling();Clear();_title.text=page.ToUpperInvariant();_status.text="Loading…";
             try { await Load(page,cancellation); cancellation.ThrowIfCancellationRequested(); if(_status.text=="Loading…")_status.text=""; FitCard(); Canvas.ForceUpdateCanvases(); _scroll.StopMovement(); _scroll.verticalNormalizedPosition=1; }
             catch(OperationCanceledException) { }
             catch(Exception error) { if(!cancellation.IsCancellationRequested && this!=null) { Clear();_status.text=error is ApiException || error is InvalidOperationException ? error.Message : "This screen could not load. Please try again.";Button("Try again",()=> {Show(page);return Task.CompletedTask;});Button("Play on this device",()=> {LaunchLocal();return Task.CompletedTask;}); if(error is ApiException api && api.Status==401) Button("Account recovery",()=>{Show("Account");return Task.CompletedTask;}); FitCard(); } }
@@ -272,7 +272,8 @@ namespace Coup.Game.UI
                     if(item==null||item.Type==JsonValue.Kind.Null)Text(page=="Season"?"No season is active. Rewards and paid passes are unavailable until a season is announced.":"No event is active. Check back for the next Crown of Nations event.",190);
                     else Text(item.Str("title")+"\n\n"+item.Str("description"),320);break;
                 case "Settings":
-                    Button(AudioListener.volume>0?"Sound: ON":"Sound: OFF",()=>{AudioListener.volume=AudioListener.volume>0?0:1;PlayerPrefs.SetInt("Coup.AudioMuted",AudioListener.volume==0?1:0);PlayerPrefs.Save();Show("Settings");return Task.CompletedTask;});
+                    Button(Sfx.Muted?"Sound: OFF":"Sound: ON",()=>{Sfx.Muted=!Sfx.Muted;Show("Settings");return Task.CompletedTask;});
+                    Button(Sfx.MusicMuted?"Music: OFF":"Music: ON",()=>{Sfx.MusicMuted=!Sfx.MusicMuted;Show("Settings");return Task.CompletedTask;},!Sfx.Muted);
                     Nav("Account and privacy","Account");Nav("Privacy and support","Privacy and support");Nav("Friends","Friends");Nav("Match history","History");Nav("Rules","Rules");Nav("Connection status","Connection");break;
                 case "Connection":
                     await Get("/v1/status",token);Text("Connected to the game server. Your progress and online matches are stored on the server.",150);Button("Refresh connection",()=>{Show("Connection");return Task.CompletedTask;});break;
@@ -291,6 +292,6 @@ namespace Coup.Game.UI
         private async void LaunchQueue(string mode) {if(_launching)return;_launching=true;try {await _api.AccessToken();if(this==null)return;MatchLaunch.Queue(mode);OpenGame();}catch(Exception){_launching=false;if(this!=null)Show("Connection");}}
         private async void LaunchPrivate(string code) {if(_launching)return;_launching=true;try {await _api.AccessToken();if(this==null)return;if(code==null)MatchLaunch.Host();else MatchLaunch.Join(code);OpenGame();}catch(Exception){_launching=false;if(this!=null)Show("Connection");}}
         private static void LaunchLocal() {MatchLaunch.Local();OpenGame();}
-        private static void OpenGame() => SceneManager.LoadScene(MatchLaunch.GameScene);
+        private static void OpenGame() => ScreenTransition.Load(MatchLaunch.GameScene);
     }
 }

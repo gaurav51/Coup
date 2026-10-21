@@ -15,144 +15,144 @@ MonoBehaviour:
   cues:
   - cue: 1
     takes:
-    - {fileID: 8300000, guid: a3902594804ef4b40bf993ec0c054a66, type: 3}
-    - {fileID: 8300000, guid: 8817d9a83a5a54ca482bcae5d585bfe7, type: 3}
-    - {fileID: 8300000, guid: 8c55e5682ac4446fba07b4792c574956, type: 3}
-    gain: 0.15593502
+    - {fileID: 8300000, guid: 651fb39065ef84f588c915a2d96e6f25, type: 3}
+    - {fileID: 8300000, guid: a736217ba59f64e0ba15d2558afa121d, type: 3}
+    - {fileID: 8300000, guid: b79f42389999942da91be17f4d271cdc, type: 3}
+    gain: 1.0120466
     pitchSpread: 0.6
   - cue: 2
     takes:
-    - {fileID: 8300000, guid: d56fe5a6d758a45aa961a6968d743f77, type: 3}
-    gain: 0.3753123
+    - {fileID: 8300000, guid: ebbbc8e9683f54a18a55206e11174dc0, type: 3}
+    gain: 1.0255568
     pitchSpread: 0
   - cue: 3
     takes:
-    - {fileID: 8300000, guid: f98c249da69554be09c361c3e4dfc6ac, type: 3}
-    gain: 0.13882849
+    - {fileID: 8300000, guid: 44417e502de894ec1845afc6459a8aac, type: 3}
+    gain: 1.0011842
     pitchSpread: 0
   - cue: 4
     takes:
-    - {fileID: 8300000, guid: 9bf951d166264485e998a8ca88d7eff7, type: 3}
-    - {fileID: 8300000, guid: 6102f20b53860472ca9fdb11020730cd, type: 3}
-    - {fileID: 8300000, guid: b78d3188b9c3e455b8a76c164e3e2674, type: 3}
-    gain: 0.44337767
+    - {fileID: 8300000, guid: 0ecfb856a099345af86b55ffd6a948bd, type: 3}
+    - {fileID: 8300000, guid: e387322ff71fa45569e02cdae462d010, type: 3}
+    - {fileID: 8300000, guid: 40473d442432240aeb01becf81e731c4, type: 3}
+    gain: 1.0108877
     pitchSpread: 1.1
   - cue: 5
     takes:
-    - {fileID: 8300000, guid: 06b8f24af0bfc438093bc8bc4e3e6cb2, type: 3}
-    - {fileID: 8300000, guid: 9c03d089b03d046ebba1f25d5d42943d, type: 3}
-    gain: 0.49089482
+    - {fileID: 8300000, guid: 217668ea902594c2e851f48778e5ff72, type: 3}
+    - {fileID: 8300000, guid: 36c88870fc2db41e99098f38c9939578, type: 3}
+    gain: 1.06028
     pitchSpread: 0.9
   - cue: 6
     takes:
-    - {fileID: 8300000, guid: 6c156422d9f3945f09833bd916aec04e, type: 3}
-    - {fileID: 8300000, guid: f824fd069d7cf4933a216e69c3aad7b6, type: 3}
-    gain: 0.75245255
+    - {fileID: 8300000, guid: 3ce30ca670f604c2a89118ae1fa87e74, type: 3}
+    - {fileID: 8300000, guid: a47298a097ab945e5be63de0c41ac0fa, type: 3}
+    gain: 1.0487823
     pitchSpread: 1.1
   - cue: 7
     takes:
-    - {fileID: 8300000, guid: bb7258750e6da43c18ce63304c4df4f5, type: 3}
-    - {fileID: 8300000, guid: 6b10c62b3f81f41f6adcbe5807e81744, type: 3}
-    gain: 0.3187659
+    - {fileID: 8300000, guid: 301a9e0c73bd74814adf0874edae81b5, type: 3}
+    - {fileID: 8300000, guid: b385d66c534e842b296ccd5cb4c74928, type: 3}
+    gain: 1.020783
     pitchSpread: 0.6
   - cue: 8
     takes:
-    - {fileID: 8300000, guid: 63697c1837e3b4196973163309587d3f, type: 3}
-    - {fileID: 8300000, guid: 68c8f3743e18743c1b6dd850597dc2bc, type: 3}
-    - {fileID: 8300000, guid: c64156234a4d342a49ba02c18718cef1, type: 3}
-    gain: 0.6360967
+    - {fileID: 8300000, guid: 966e9cc843f2b42048d97243e0c264c9, type: 3}
+    - {fileID: 8300000, guid: b8e92a0dc2c6547009a65e0764c8149b, type: 3}
+    - {fileID: 8300000, guid: 207e358ad968d48f8b04bb48d44db13c, type: 3}
+    gain: 1.1561035
     pitchSpread: 0.9
   - cue: 9
     takes:
-    - {fileID: 8300000, guid: 35be9ca9db4474b9aadb6b538bb4a360, type: 3}
-    - {fileID: 8300000, guid: 644cceec01eeb4166bbec479af1de0c0, type: 3}
-    - {fileID: 8300000, guid: 1ffc9c54d7d234279b52cdc3e3f5a334, type: 3}
-    gain: 0.6352093
+    - {fileID: 8300000, guid: 9459e911214694fa28ee04d5ca7c8414, type: 3}
+    - {fileID: 8300000, guid: 55242c3ca3d7a4d1083ac820ecd268d7, type: 3}
+    - {fileID: 8300000, guid: a299be6d3fd7d431783f18a59479e22e, type: 3}
+    gain: 1.1594918
     pitchSpread: 0.9
   - cue: 10
     takes:
-    - {fileID: 8300000, guid: 698b940ae57f64489af2487259c2363f, type: 3}
-    gain: 0.3391068
+    - {fileID: 8300000, guid: a1a35715d9cc34985a7aa70c7ad575f0, type: 3}
+    gain: 0.9788352
     pitchSpread: 0
   - cue: 11
     takes:
-    - {fileID: 8300000, guid: 57fa413e97d254241ac51a4ad594aafe, type: 3}
-    gain: 0.071740784
+    - {fileID: 8300000, guid: 2420d394b6cad4608b39b31d7fba2173, type: 3}
+    gain: 1.0052778
     pitchSpread: 0
   - cue: 12
     takes:
-    - {fileID: 8300000, guid: a14b3ebfb58564162ab372c6765d015c, type: 3}
-    gain: 0.7336169
+    - {fileID: 8300000, guid: 04756c6fcabbd4974b931493b93c0ea4, type: 3}
+    gain: 1.088344
     pitchSpread: 0.5
   - cue: 13
     takes:
-    - {fileID: 8300000, guid: 008db75a6bda041f585c34a5d0a4349a, type: 3}
-    gain: 0.97385025
+    - {fileID: 8300000, guid: 9cbf05c0dbd4d4f578b795541a3412ac, type: 3}
+    gain: 1.1764705
     pitchSpread: 0.5
   - cue: 14
     takes:
-    - {fileID: 8300000, guid: 1f5083c358a9748af98b802597ecca64, type: 3}
-    gain: 0.99729997
+    - {fileID: 8300000, guid: 9db65411892f54d9aa63b1aa707ba1aa, type: 3}
+    gain: 1.1764705
     pitchSpread: 0
   - cue: 15
     takes:
-    - {fileID: 8300000, guid: 37bbb144887dd45ccbf55756f62ea984, type: 3}
-    gain: 0.99999994
+    - {fileID: 8300000, guid: 1bf16e0a99cf94cc98cd4577916be22d, type: 3}
+    gain: 1.1764705
     pitchSpread: 0.5
   - cue: 16
     takes:
-    - {fileID: 8300000, guid: 812a5205358f8402c8df8d87b18c54d1, type: 3}
-    gain: 0.37382296
+    - {fileID: 8300000, guid: a078699e3b3b84653ae3aeba2d1582ed, type: 3}
+    gain: 0.97704935
     pitchSpread: 0
   - cue: 17
     takes:
-    - {fileID: 8300000, guid: 5033e9d314816483287a25f42b1b3c06, type: 3}
-    gain: 0.22912863
+    - {fileID: 8300000, guid: c86ffde982451413cb70b4dfcbb81f19, type: 3}
+    gain: 0.98890346
     pitchSpread: 0
   - cue: 18
     takes:
-    - {fileID: 8300000, guid: af6ec6da731504034a644e5e2d9df379, type: 3}
-    gain: 0.66065955
+    - {fileID: 8300000, guid: ebd67b4fc6ed14111b1779bd97c795fe, type: 3}
+    gain: 1.0702611
     pitchSpread: 0
   - cue: 19
     takes:
-    - {fileID: 8300000, guid: 88c43410b0fc3464481142d2c5088186, type: 3}
-    gain: 0.3897484
+    - {fileID: 8300000, guid: 4254c54a7c2764e59aba94686d900910, type: 3}
+    gain: 1.0153121
     pitchSpread: 0
   - cue: 20
     takes:
-    - {fileID: 8300000, guid: f897ef36c8b6d4546896c27f76e2ad36, type: 3}
-    gain: 0.20943053
+    - {fileID: 8300000, guid: 0a70fecbdc8fe4cef97befd2a843991b, type: 3}
+    gain: 0.997843
     pitchSpread: 0
   - cue: 21
     takes:
-    - {fileID: 8300000, guid: 9fcee9ebaba134dfcbc9cc34a66f69d7, type: 3}
-    gain: 0.17048785
+    - {fileID: 8300000, guid: f1b17cbafd70c4272ba346c6dedde104, type: 3}
+    gain: 1.0002031
     pitchSpread: 0
   - cue: 22
     takes:
-    - {fileID: 8300000, guid: 2bb1423c9d5d14345b207774df656fe3, type: 3}
-    gain: 0.1561715
+    - {fileID: 8300000, guid: afa8839c319054664b98994fab82c4e4, type: 3}
+    gain: 1.000302
     pitchSpread: 0
   - cue: 23
     takes:
-    - {fileID: 8300000, guid: 77b0c52358c9f46d880e5986d49ccb52, type: 3}
-    gain: 0.44653624
+    - {fileID: 8300000, guid: 7ccd62407a23544f6b0a294b37077f49, type: 3}
+    gain: 1.109306
     pitchSpread: 0
   - cue: 24
     takes:
-    - {fileID: 8300000, guid: 8d84b19a63f6e4815985ab71c3156628, type: 3}
-    gain: 0.60425264
+    - {fileID: 8300000, guid: 495f3f18f31334dd290acceb152dc537, type: 3}
+    gain: 1.0542442
     pitchSpread: 0
   - cue: 25
     takes:
     - {fileID: 8300000, guid: 0eacb5eb31301447f8570d80b657ddcb, type: 3}
-    gain: 0.25423568
+    gain: 0.99647576
     pitchSpread: 0
   - cue: 26
     takes:
     - {fileID: 8300000, guid: 8a68d2ed85df14ec8b5cae4ae606142f, type: 3}
-    gain: 0.18396533
+    gain: 1.0001107
     pitchSpread: 0
   lobbyTheme: {fileID: 8300000, guid: 5c2aa53db21684d048865a22b1354b4b, type: 3}
   tableTheme: {fileID: 8300000, guid: 62b120f7f6c2d4a768ded63010fc4cd9, type: 3}

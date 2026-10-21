@@ -40,13 +40,15 @@ namespace Coup.Game.UI
             _stage.offsetMin = _stage.offsetMax = Vector2.zero;
             Canvas.ForceUpdateCanvases();
             var tall = Mathf.InverseLerp(1920, 2400, _stage.rect.height);
+            var sixPlayerCompression = _players == 6 ? 1f - tall : 0f;
+            _table.RefreshSeatLayout();
             Bottom("ActionBar", 235, 1);
             Bottom("ResponseBar", 235, 1);
-            Bottom("Hud", Mathf.Lerp(580, 600, tall), .95f);
+            Bottom("Hud", Mathf.Lerp(580, 600, tall) - 60 * sixPlayerCompression, .95f);
             var hud = _stage.Find("Hud") as RectTransform;
             if (hud != null) hud.anchoredPosition += new Vector2(34, 0);
-            Bottom("Hand", Mathf.Lerp(845, 935, tall), Mathf.Lerp(.72f, .9f, tall));
-            Bottom("StatusPlate", Mathf.Lerp(1075, 1220, tall), .94f);
+            Bottom("Hand", Mathf.Lerp(845, 935, tall) - 100 * sixPlayerCompression, Mathf.Lerp(.72f, .9f, tall));
+            Bottom("StatusPlate", Mathf.Lerp(1075, 1220, tall) - 100 * sixPlayerCompression, .94f);
             Actions();
             Responses();
             var top = _stage.Find("TopBar") as RectTransform;

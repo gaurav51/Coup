@@ -611,6 +611,13 @@ namespace Coup.Game.UI
             if (!Mathf.Approximately(shift, 0f)) seat.anchoredPosition += new Vector2(shift, 0f);
         }
 
+        public void RefreshSeatLayout()
+        {
+            if (match == null || match.Game == null) return;
+            _layoutSeatCount = -1;
+            EnsureSeats(match.Game);
+        }
+
         private void EnsureSeats(CoupGame game)
         {
             if (match == null || _panels.Count == 0) return;
@@ -625,6 +632,10 @@ namespace Coup.Game.UI
                     else { rect.anchoredPosition=spots[index].Position;rect.localScale=Vector3.one*spots[index].Scale; }
                     rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1);
                     rect.anchoredPosition -= new Vector2(0, 960);
+                    // On short portrait screens, lift the two lowest seats clear
+                    // of the status/hand bands without shrinking their cards.
+                    if (seats.Count == 5 && (index == 0 || index == 4) && _stage != null)
+                        rect.anchoredPosition += Vector2.up * (50f * (1f - Mathf.InverseLerp(1920, 2400, _stage.rect.height)));
                     panel.SetSeatScale(rect.localScale.x);
                 }
                 if (seats.Count != _panels.Count) {

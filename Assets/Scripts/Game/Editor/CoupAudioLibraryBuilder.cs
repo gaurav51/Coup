@@ -66,6 +66,102 @@ namespace Coup.EditorTools
         [MenuItem("Coup/Rebuild Audio Library", priority = 30)]
         public static void Rebuild()
         {
+            Normalise();
+            BuildLibrary();
+        }
+
+        /// <summary>
+        /// Brings every cue clip to the level its moment deserves, by rewriting the
+        /// audio rather than by turning a knob at play time. A gain alone cannot do
+        /// it: Unity clamps a voice's volume at 1, so a quiet source can never be
+        /// lifted to meet a loud one, and the mix collapses towards whatever the
+        /// quietest file happened to be recorded at.
+        /// </summary>
+        private static void Normalise()
+        {
+            var written = 0;
+            foreach (var path in ClipPaths(SfxDir).ToArray())
+            {
+                if (!TryCue(path, out var cue)) continue;
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                if (clip == null || clip.loadType == AudioClipLoadType.Streaming) continue;
+
+                var samples = Read(clip);
+                if (samples == null || samples.Length == 0) continue;
+
+                var measured = WindowLoudness(samples, clip.frequency, clip.channels);
+                if (measured < 0.0001f) continue;
+
+                var gain = TargetLoudness(cue) / measured;
+                if (Mathf.Abs(gain - 1f) < 0.04f && Path.GetExtension(path) == ".wav") continue;
+
+                var shaped = new float[samples.Length];
+                for (var i = 0; i < samples.Length; i++) shaped[i] = SoftClip(samples[i] * gain);
+
+                var target = Path.ChangeExtension(path, ".wav");
+                WriteWav(target, shaped, clip.channels, clip.frequency);
+                if (target != path) AssetDatabase.DeleteAsset(path);
+                written++;
+            }
+
+            Cache.Clear();
+            if (written > 0) AssetDatabase.Refresh();
+            Debug.Log($"[Coup] Normalised {written} cue clip(s) to their mix targets.");
+        }
+
+        /// <summary>
+        /// Rounds off anything the gain pushed near full scale. Only the top of the
+        /// range is touched, so a transient keeps its snap instead of being scaled
+        /// back down — which would undo the levelling it was boosted for.
+        /// </summary>
+        private static float SoftClip(float x)
+        {
+            const float knee = 0.70f;
+            var magnitude = Mathf.Abs(x);
+            if (magnitude <= knee) return x;
+            var over = (magnitude - knee) / (1f - knee);
+            var shaped = knee + (1f - knee) * (float)System.Math.Tanh(over);
+            return Mathf.Sign(x) * Mathf.Min(shaped, 0.995f);
+        }
+
+        private static void WriteWav(string assetPath, float[] samples, int channels, int rate)
+        {
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            var bytes = samples.Length * 2;
+            writer.Write(new[] { 'R', 'I', 'F', 'F' });
+            writer.Write(36 + bytes);
+            writer.Write(new[] { 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ' });
+            writer.Write(16);
+            writer.Write((short)1);
+            writer.Write((short)channels);
+            writer.Write(rate);
+            writer.Write(rate * channels * 2);
+            writer.Write((short)(channels * 2));
+            writer.Write((short)16);
+            writer.Write(new[] { 'd', 'a', 't', 'a' });
+            writer.Write(bytes);
+            foreach (var sample in samples)
+                writer.Write((short)(Mathf.Clamp(sample, -1f, 1f) * 32767f));
+            writer.Flush();
+
+            var full = Path.Combine(Directory.GetCurrentDirectory(), assetPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(full) ?? ".");
+            File.WriteAllBytes(full, stream.ToArray());
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+        }
+
+        /// <summary>A clip's file name decides which cue owns it: Coup.wav, CardDeal_1.wav.</summary>
+        private static bool TryCue(string path, out Cue cue)
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            var cut = name.LastIndexOf('_');
+            var stem = cut > 0 && int.TryParse(name[(cut + 1)..], out _) ? name[..cut] : name;
+            return Enum.TryParse(stem, out cue) && cue != Cue.None;
+        }
+
+        private static void BuildLibrary()
+        {
             var library = AssetDatabase.LoadAssetAtPath<CoupAudio>(LibraryPath);
             if (library == null)
             {
@@ -79,13 +175,9 @@ namespace Coup.EditorTools
 
             foreach (var path in ClipPaths(SfxDir))
             {
-                var name = Path.GetFileNameWithoutExtension(path);
-                var cut = name.LastIndexOf('_');
-                var stem = cut > 0 && int.TryParse(name[(cut + 1)..], out _) ? name[..cut] : name;
-
-                if (!Enum.TryParse<Cue>(stem, out var cue) || cue == Cue.None)
+                if (!TryCue(path, out var cue))
                 {
-                    unclaimed.Add(name);
+                    unclaimed.Add(Path.GetFileNameWithoutExtension(path));
                     continue;
                 }
 
@@ -96,7 +188,6 @@ namespace Coup.EditorTools
             }
 
             var entries = new List<CoupAudio.CueClip>();
-            var peaks = new List<float>();
             var report = new List<string>();
 
             foreach (var pair in byCue.OrderBy(pair => (int)pair.Key))
@@ -105,8 +196,10 @@ namespace Coup.EditorTools
                 var loudness = takes.Select(Loudness).Where(value => value > 0.0001f).ToArray();
                 var measured = loudness.Length > 0 ? loudness.Average() : 0.1f;
 
-                var gain = Mathf.Clamp(TargetLoudness(pair.Key) / measured, 0.05f, 4f);
-                peaks.Add(takes.Select(Peak).DefaultIfEmpty(1f).Max());
+                // The clips were levelled on disk, so this is a residual trim only.
+                // It cannot exceed what Unity can apply: a voice's volume is
+                // sfxVolume * gain, and that product is clamped at 1.
+                var gain = Mathf.Clamp(TargetLoudness(pair.Key) / measured, 0.05f, 1f / library.sfxVolume);
 
                 entries.Add(new CoupAudio.CueClip
                 {
@@ -115,23 +208,8 @@ namespace Coup.EditorTools
                     gain = gain,
                     pitchSpread = PitchSpread(pair.Key)
                 });
-                report.Add($"{pair.Key} x{takes.Length}  measured {measured:F3}");
+                report.Add($"{pair.Key} x{takes.Length}  measured {measured:F3} -> gain {gain:F2}");
             }
-
-            // Trim the whole set by one factor rather than clamping each cue on its
-            // own. Clamping per cue silently flattens the mix — the loud sounds hit
-            // the ceiling first and end up no louder than the quiet ones, which is
-            // the thing these targets exist to prevent.
-            var hottest = 0f;
-            for (var i = 0; i < entries.Count; i++)
-                hottest = Mathf.Max(hottest, entries[i].gain * peaks[i]);
-            var trim = hottest > 1f ? 1f / hottest : 1f;
-            for (var i = 0; i < entries.Count; i++)
-            {
-                entries[i].gain *= trim;
-                report[i] += $" -> gain {entries[i].gain:F2}";
-            }
-            report.Add($"set trimmed by x{trim:F2} so the hottest cue peaks at 1.0");
 
             library.cues = entries.ToArray();
             library.lobbyTheme = FirstClip(MusicDir, "LobbyTheme");
@@ -170,9 +248,15 @@ namespace Coup.EditorTools
         private static float Loudness(AudioClip clip)
         {
             var samples = Read(clip);
-            if (samples == null || samples.Length == 0) return 0f;
+            return samples == null ? 0f : WindowLoudness(samples, clip.frequency, clip.channels);
+        }
 
-            var window = Mathf.Min(samples.Length, Mathf.Max(1, (int)(LoudnessWindowSeconds * clip.frequency) * clip.channels));
+        private static float WindowLoudness(float[] samples, int frequency, int channels)
+        {
+            if (samples.Length == 0) return 0f;
+            var window = Mathf.Min(samples.Length,
+                Mathf.Max(1, (int)(LoudnessWindowSeconds * frequency) * channels));
+
             var sum = 0.0;
             for (var i = 0; i < window; i++) sum += samples[i] * (double)samples[i];
 
@@ -183,15 +267,6 @@ namespace Coup.EditorTools
                 if (sum > best) best = sum;
             }
             return Mathf.Sqrt((float)(best / window));
-        }
-
-        private static float Peak(AudioClip clip)
-        {
-            var samples = Read(clip);
-            if (samples == null) return 1f;
-            var peak = 0f;
-            foreach (var sample in samples) peak = Mathf.Max(peak, Mathf.Abs(sample));
-            return peak;
         }
 
         private static readonly Dictionary<AudioClip, float[]> Cache = new();

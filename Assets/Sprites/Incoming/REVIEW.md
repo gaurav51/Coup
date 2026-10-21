@@ -1,3 +1,93 @@
+## 2026-10-22 — Codex: piles immediately above turn bar (finished)
+
+Per user placement request, draw/discard center follows StatusPlate y +185 on
+compact screens (+260 tall), with x +/-70 compact / +/-120 tall. Captions stay
+between the decks and turn bar. Coin pile enlarged .24 -> .42 compact (.55 tall)
+and placed above the shared decks (+185 compact / +245 tall). All use bottom
+anchors and respond to safe-area layout changes. Prefabs untouched.
+
+Verified six-player 1080x1920 Play mode; screenshot
+Captures/Piles_Above_Turn_Bar.png inspected. Coin, draw, discard root bounds each
+have zero intersections with active CardViews. Final console zero errors.
+Stopped Play mode. No APK rebuild or device verification in this pass.
+
+## 2026-10-22 — Codex: coin pile restored (finished)
+
+Removed compact-screen coin-pile hiding from TableResponsiveLayout. Compact
+screens show it at .24 scale, centered 170 units above draw/discard, in the gap
+below the top opponent cards. Taller layouts retain existing placement/scale.
+Verified six-player Play mode at 1080x1920: active=true, scale=.24, zero coin/card
+bounds intersections. Inspected Captures/Coin_Pile_Restored.png. Compilation
+console zero errors. Stopped Play mode; no APK rebuild.
+
+## 2026-10-22 — Claude Code: audio replaced with CC0 recordings (finished)
+
+User heard the synthesised pass from the previous entry and said it was bad.
+They were right and I had no way to know: I can measure that a clip is valid
+audio, not that it sounds good. Replaced every sound with real CC0 recordings.
+
+Downloaded, all CC0, commercial use fine, attribution optional:
+seven Kenney packs (casino, rpg, interface, ui, impact, digital, music jingles)
+and four tracks from randommind on OpenGameArt. Provenance and what was done to
+each file is recorded in **Assets/Audio/CREDITS.md**. Nothing here is licensed
+music or a sample that needs clearing.
+
+Mapping is by what the recording is, not by vibes: card-slide for a deal,
+chips-collide for a steal, drawKnife for the assassin, impactBell_heavy for an
+elimination. Two picks could not be made from a filename — which pizzicato
+jingle rises and which falls — so all thirteen candidates were imported and
+measured through AudioClip.GetData; PIZZI16 rises 407->757 Hz and PIZZI00 falls
+857->311 Hz, so they became ChallengeWon and ChallengeLost.
+
+Music: King's Feast loops as-is for the lobby. Exploration is a 3:54 piece, so a
+58s section from 0:36 was cut and crossfaded into a loop — seam 0.0041 against a
+mean sample step of 0.0134, measured. Victory and Defeat themes trimmed to 7s
+and 8.5s stings with fades.
+
+**CoupAudioGenerator.cs is deleted.** Its menu item would have overwritten the
+new clips with the synthesised ones. In its place CoupAudioLibraryBuilder.cs
+(**Coup/Rebuild Audio Library**) scans Assets/Audio, claims each file by its
+name — Coup.wav, CardDeal_1.wav — and builds the library. Swapping a sound is
+now dropping a file in and running the menu item. The runtime layer, the cue
+list and every hook from the previous entry are unchanged.
+
+The mix is measured, not guessed. Clips from different packs arrive up to 20 dB
+apart, which reads as bad audio however good each one is, and a play-time gain
+cannot fix it because Unity clamps a voice's volume at 1 — a quiet source can
+never be lifted to meet a loud one. So the builder rewrites each clip at the
+level its moment deserves, with a soft knee near full scale so transients keep
+their snap. Result, measured through GetData: a bot's turn at 0.026 RMS up to a
+coup at 0.170, a 16.5 dB range, music bed at 0.028 underneath, nothing clipping.
+
+Verified in Play mode: lobby on King's Feast, crossfade into the table theme on
+scene load, 35/35 lobby buttons bound, one listener, 12 cues fired at once took
+12 voices with the right clips, Tax fired on a real declare, master output live
+with zero samples at full scale. Console zero errors.
+
+Still not done: I have not heard any of this either. What is verified is that
+the sources are professionally recorded, the semantic mapping is right and the
+levels are measured — not that the result is pleasant. Assets/Audio is 26 MB of
+source WAV, 23 MB of it the two music loops; it imports as Vorbis so the shipped
+size is far smaller, but the loops can be trimmed if the repo size matters.
+No build produced, nothing committed.
+
+---
+
+## 2026-10-22 — Codex: six-player short-screen layout (finished)
+
+Fixed the user screenshot's turn banner overlapping the lowest opponents' cards.
+For six players at 1080x1920, lowest seats move up 50 reference units, status and
+hand bands down 100, HUD down 60. Adjustments interpolate to zero by stage height
+2400; existing card/button scales and other player-count layouts are preserved.
+TableResponsiveLayout calls RefreshSeatLayout on safe-area/size/player-count
+changes so opponent positions adapt alongside the lower bands. Prefabs untouched.
+
+Verified six-player local match in Play mode at 1080x1920: zero CardView/status
+bounds intersections. Inspected Captures/Six_Player_Layout_Final.png: lower
+opponent nameplates clear upper row cards, banner clear both opponent cards and
+hand, HUD above action grid. Final console zero errors. Stopped Play mode.
+No APK rebuilt; device validation pending.
+
 ## 2026-10-21 — Codex: panel and screen transitions (finished)
 
 Added PanelTransition: .24s fade/scale entrance and .16s dismissal for

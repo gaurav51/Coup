@@ -157,4 +157,4 @@ MonoBehaviour:
   lobbyTheme: {fileID: 8300000, guid: 5c2aa53db21684d048865a22b1354b4b, type: 3}
   tableTheme: {fileID: 8300000, guid: 62b120f7f6c2d4a768ded63010fc4cd9, type: 3}
   sfxVolume: 0.85
-  musicVolume: 0.34
+  musicVolume: 0.25

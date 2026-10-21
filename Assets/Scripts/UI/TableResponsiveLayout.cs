@@ -59,19 +59,19 @@ namespace Coup.Game.UI
                 top.sizeDelta = new Vector2(-48, 140);
                 top.anchoredPosition = new Vector2(0, -85);
             }
-            var centreY = Mathf.Lerp(1330, 1500, tall);
-            var crowded = _players >= 4;
             var compactCentre = _stage.rect.height < 2200;
-            if (compactCentre) centreY = Mathf.Min(centreY, _stage.rect.height - 660);
+            var statusPlate = _stage.Find("StatusPlate") as RectTransform;
+            // Keep the shared piles directly above the status band at every aspect ratio.
+            var centreY = (statusPlate != null ? statusPlate.anchoredPosition.y : 1075) + (compactCentre ? 185 : 260);
             var pileScale = compactCentre ? .45f : .75f;
-            var deckX = _players == 2 ? 330 : compactCentre ? 60 : crowded ? 120 : Mathf.Lerp(130, 250, tall);
+            var deckX = compactCentre ? 70 : 120;
             Centre("DrawDeck", -deckX, centreY, pileScale);
             Centre("Discard", deckX, centreY, pileScale);
             Centre("DrawDeckSlot", -deckX, centreY, compactCentre ? .65f : 1);
             Centre("DiscardSlot", deckX, centreY, compactCentre ? .65f : 1);
-            Centre("CoinPile", 0, centreY + (crowded ? 185 : 0), crowded ? .4f : Mathf.Lerp(.4f, .75f, tall));
+            Centre("CoinPile", 0, centreY + (compactCentre ? 185 : 245), compactCentre ? .42f : .55f);
             var coins = _stage.Find("CoinPile");
-            if (coins != null) coins.gameObject.SetActive(!compactCentre);
+            if (coins != null) coins.gameObject.SetActive(true);
             var captionOffset = compactCentre ? 100 : 145;
             var captionScale = compactCentre ? .6f : .85f;
             Centre("DeckCountPlate", -deckX, centreY - captionOffset, captionScale);

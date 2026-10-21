@@ -1,3 +1,81 @@
+## 2026-10-21 — Codex: original-game legal risk and competitor audit (finished)
+
+Repository-wide inventory and focused legal-relevant static review for a planned
+worldwide launch with purchases and no cash prizes. User confirmed no Coup licence
+and wants an original game. No implementation changes made in this audit.
+
+Reviewed account/auth, deletion/retention, social/UGC, wallet/store/refund, rules,
+art derivation prompts/references, packages, font licences, publishing settings
+and hosting docs. Inventory covers 48 client C# and 21 server JS source files;
+this is not a line-by-line functional or forensic certification. No player DB,
+secret configuration, private contracts or store consoles inspected.
+
+Delivered a Canvas risk register with 23 findings, 76 valid file/line references,
+primary legal/policy links, fix order, data map, positive foundations, limitations
+and 8 comparable games. Location:
+/Users/gaurav-bs/.cursor/projects/Users-gaurav-bs-Coup/canvases/game-release-legal-audit.canvas.tsx
+TypeScript check passed. All referenced evidence paths/line bounds checked.
+
+Priority work: clear a new public brand and asset provenance, accurate notices
+and age strategy, complete data lifecycle/external deletion, iOS login, payment
+refund lifecycle and useful products, moderation/grievance controls, publisher/
+territory/licence/disclosure readiness. Mechanics vs expression distinguished;
+no allegation that the prior generated card art is a commercial-board-game scan.
+No claim that worldwide law is fully cleared. Indian gaming Rules 2026 and
+phased DPDP commencement included as current review issues.
+
+BGA explicitly documents authorized Coup publication; other mobile/browser
+listings' licences and service operation not verified. Font OFL texts found;
+xmlhttprequest-ssl lockfile licence metadata missing, but actual LICENSE inspected
+and found MIT-style grant. No need inferred to replace fonts or MongoDB.
+Unity eligibility, MongoDB licensing, trader/tax and publisher questions flagged
+for evidence/counsel rather than asserted violations. Game and Editor untouched.
+
+---
+
+## 2026-10-21 — Codex: lobby UI animation (finished)
+
+Added runtime LobbyMotion, bootstrapped by LobbyScreen. The header fades/slides
+as one aligned group; cards, side panels, Play, modes, event and bottom navigation
+follow with a stagger over roughly 0.9s. Once settled, Play breathes by 0.8% and
+the displayed cards float by 3 units. Idle movement pauses behind platform panels.
+All motion uses unscaled delta time and authored resting positions/scales, with
+restoration on disable and no animation during login/startup. Supports the
+Coup.ReducedMotion preference (skips entrance and ambient motion).
+
+LobbyPressFeedback reports pointer hover/press state; motion smoothly scales
+interactive buttons without replacing their Button callbacks. Exit, release,
+disable and focus loss clear press state. Header buttons included.
+
+Verified compile/Play console with zero errors, login hiding and lobby re-entry,
+card movement (-2.97 units sampled), idle Play scale (1.0076), held scale (0.9578),
+release reset, and full authored pose restoration when motion is disabled:
+header y=0, card y=0, Play scale=1, alpha=1. Reference screenshot:
+Assets/Screenshots/Lobby_Animated_UI_Final.png (static frame, not a video).
+Used presentation-only login bypass for preview; no new auth/network test claimed.
+Returned to edit mode. No scene or prefab sources changed; APK not rebuilt.
+
+---
+
+## 2026-10-21 — Codex: lobby header alignment (finished)
+
+Aligned the authored lobby header through the Editor, saving Lobby.unity only.
+Profile/currency/gems/settings share y=-100, height 90 and exactly 30-unit gaps.
+Row bounds are -500..500, leaving 40-unit side margins on the reference canvas.
+Reduced portrait/ring to 120 from 140/146, centered on the same row. Profile name
+and level share a left edge with clearer line spacing; level progress aligns
+with its baseline. Currency icons/values/plus signs use matching internal columns;
+coin/gem art is inset and settings cog reduced to 48 for balanced padding.
+
+Verified saved scene in Play mode at 1080x1920, all header TMP fields report no
+overflow, all panel centers/heights/gaps measured, and console has zero errors.
+Native header crop: Assets/Screenshots/Lobby_Header_Alignment_Detail.png.
+Full capture: Assets/Screenshots/Lobby_Header_Alignment_20261021.png.
+Returned to edit mode. Existing Game.unity changes preserved; no prefab sources
+or scripts changed. APK not rebuilt.
+
+---
+
 ## 2026-10-20 — Claude: UI sprite atlas, and my bar-fitting removed (finished)
 
 **Atlas.** The sprite packer was switched off entirely (`m_SpritePackerMode: 0`)

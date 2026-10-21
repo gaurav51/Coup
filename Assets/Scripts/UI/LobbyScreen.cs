@@ -15,6 +15,7 @@ namespace Coup.Game.UI
             AudioListener.volume=PlayerPrefs.GetInt("Coup.AudioMuted",0)==1?0f:1f;
             if(GetComponent<LoginScreen>()==null)gameObject.AddComponent<LoginScreen>();
             if(GetComponent<PlatformPanels>()==null)gameObject.AddComponent<PlatformPanels>();
+            if(GetComponent<LobbyMotion>()==null)gameObject.AddComponent<LobbyMotion>();
         }
     }
 }

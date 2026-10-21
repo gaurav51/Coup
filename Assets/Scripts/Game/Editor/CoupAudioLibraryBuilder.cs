@@ -35,7 +35,7 @@ namespace Coup.EditorTools
         private static float TargetLoudness(Cue cue) => cue switch
         {
             Cue.TurnOther => 0.030f,
-            Cue.UiClick or Cue.UiBack => 0.060f,
+            Cue.UiClick => 0.060f,
             Cue.UiDenied => 0.070f,
             Cue.CardDeal or Cue.CardFlip or Cue.Shuffle => 0.085f,
             Cue.TurnYours => 0.090f,
@@ -93,7 +93,16 @@ namespace Coup.EditorTools
                 if (measured < 0.0001f) continue;
 
                 var gain = TargetLoudness(cue) / measured;
-                if (Mathf.Abs(gain - 1f) < 0.04f && Path.GetExtension(path) == ".wav") continue;
+                var alreadyWav = Path.GetExtension(path) == ".wav";
+                if (Mathf.Abs(gain - 1f) < 0.04f && alreadyWav) continue;
+
+                // A clip already sitting at full scale cannot be made louder; the
+                // soft knee would just absorb the gain. Boosting it again on every
+                // run would soft-clip the same transients over and over, so a clip
+                // that has nowhere left to go is left alone.
+                var peak = 0f;
+                foreach (var sample in samples) peak = Mathf.Max(peak, Mathf.Abs(sample));
+                if (gain > 1f && peak >= 0.95f && alreadyWav) continue;
 
                 var shaped = new float[samples.Length];
                 for (var i = 0; i < samples.Length; i++) shaped[i] = SoftClip(samples[i] * gain);

@@ -11,7 +11,6 @@ namespace Coup.Game
 
         // Interface
         UiClick,
-        UiBack,
         UiDenied,
 
         // Cards and coins

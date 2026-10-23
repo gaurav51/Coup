@@ -1,3 +1,4 @@
+import { voiceAccess } from "./voice.js";
 import { isRejection } from "./errors.js";
 import { Client, Server } from "./protocol.js";
 import { RoomStore, parseCommand } from "./rooms.js";
@@ -39,6 +40,12 @@ export function attachSockets(io, store = new RoomStore()) {
     socket.onAny((event, ...args) => {
       const data = args.filter((item) => typeof item !== "function");
       logJson("<-", event, data.length === 1 ? data[0] : data);
+    });
+
+    socket.on("voice:access", (payload, ack) => {
+      const [data, done] = normalize(payload, ack);
+      try { done({ ok: true, ...voiceAccess(store, socket, data.action) }); }
+      catch (error) { done({ ok: false, error: error.message }); }
     });
 
     socket.on("queue:join", async (payload, ack) => {

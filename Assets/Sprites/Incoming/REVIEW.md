@@ -1,3 +1,218 @@
+## 2026-10-24 — Claude Code: tutorial layout fixed to the backdrop frame (finished)
+
+User reported the tutorial UI broken at 1080x2400. Causes, all in GameTutorial.cs:
+the illustration was stretched vertically by a non-uniform localScale (cards,
+diamonds and captions about 35% too tall); Backdrop.png was stretched to the
+screen, and the guide ignored the gold frame painted into it, so the heading,
+explanation and nav buttons overlapped the frame and its corner flourishes; the
+body text was taller than its plaque; tiles on Coins overlapped; the plaque art
+was cropped in a 1280px space on a 1254px atlas and stretched without slicing.
+
+Runtime code only. The backdrop now covers the screen without distortion, and the
+guide is laid inside the frame's measured interior (intersected with the safe
+area), clear of the corner flourishes. Skip sits under the crown band. Heading,
+gold button and navy plaques are 9-sliced from exact atlas rects. Navy plaques
+draw an unstretched marble crop under a fillCenter=false frame, because the
+plaque's thin centre streaked when stretched. The explanation plaque is sized
+once to the longest body text. Illustrations scale uniformly. Accent outlines
+sit outside tiles. BACK dims on page 1.
+
+The ornament atlas was importing at 1024px: the Tutorial CapFor line was added
+after its import. Forced a reimport so the postprocessor applied 2048 (native
+1254). No .meta hand-edits.
+
+Verified in Play mode at native 1080x2400 and 1080x1920. All six pages: no TMP
+overflow, body at full 38pt, content measured inside the frame and between the
+heading and explanation. Start Playing closed the tutorial and restored
+timeScale=1. Console zero errors/warnings. Removed the Coup.TutorialSeen key that
+QA set; it was absent before. Captures/Tutorial_Before_*.png,
+Tutorial_Fixed_*.png, Tutorial_Fixed_Overview.png, Tutorial_Before_After.png,
+Tutorial_Fixed_Target_1920.png. Not tested on a device or with a notch safe area.
+In one earlier session the tutorial buttons lost their onClick listeners. It did
+not reproduce, and no game code clears them.
+
+## 2026-10-24 — Codex: illustrated tutorial implemented (finished)
+
+Implemented approved tutorial concept as six runtime pages using existing card
+prefab instances, existing action icons and TMP copy. Generated text-free navy/
+gold palace backdrop with built-in imagegen; saved under
+Assets/Sprites/02_Backgrounds/Resources/Tutorial/Backdrop.png. Prompt recorded in
+Documentation/Art/TutorialBackdrop.md. No authored prefab or scene regenerated.
+
+GameTutorial now has safe-area fitting, consistent navigation and progress,
+Duke/Tax and Ambassador/Exchange colored connections, visual costs and challenge/
+block examples. Target page has tappable demo profiles cloned from live public
+portrait masks, pulsing borders honoring reduced motion, and feedback; it does
+not submit actions or spend coins. Practice pauses; completion/skip restores time.
+Online remains unpaused and is explicitly labeled. Existing replay entry retained.
+
+Verified all six pages in Play mode; screenshots checked at native 1080x1920 and
+1080x2400. Text overflow scan across six pages found none. Demo click unchanged
+coins; completion and skip restored timeScale=1. Fixed unsupported diamond glyph
+using UI geometry and verified actual opponent portraits. Console zero errors.
+Captures/Tutorial_Illustrated_Cards.png, Tutorial_Illustrated_Coins.png,
+Tutorial_Illustrated_Challenge.png, Tutorial_Illustrated_Blocks.png,
+Tutorial_Final_Influence_2400.png, Tutorial_Target_Verified_2400.png.
+Stopped Play, reset tutorial-seen preference to 0. No APK rebuild/device test.
+
+## 2026-10-24 — Codex: visual hand/action association (finished)
+
+User rejected YOUR CARD text as a substitute for visual communication. Removed
+that label entirely. Supported legal actions now use the role accent for a
+pulsing outer rim, brighter border and tinted fill; matching hand cards have the
+same accent outline. A small matching card image sits beside the full-size
+original action icon. Duke/Tax purple, Ambassador/Exchange orange; other roles
+use CoupArt accents. Unowned actions remain available as bluffs and affordability
+still governs disabled state. Updated tutorial/caption to explain visual cues.
+Reduced motion keeps a steady action outline. Runtime changes only.
+
+Verified native1080x1920 six-player Duke+Ambassador fixture in Play mode:
+Tax/Exchange visually matched hand cards, no YOUR CARD labels remain (count0).
+Inspected Captures/Visual_Card_Action_Link.png. Compile/runtime console zero
+errors. Stopped Play; tutorial seen preference reset for first-run presentation.
+Previous APK does not contain this latest visual revision; no rebuild this pass.
+
+## 2026-10-23 — Codex: onboarding APK build finished
+
+Android buildd9344cb686 succeeded0errors/18warnings. Updated
+Builds/Coup-Veiled-Court-Mobile.apk includes tutorial, owned-card action hints,
+and explicit target selection. No device installation/validation in this pass.
+
+## 2026-10-23 — Codex: tutorial and clearer action targeting
+
+Added replayable six-page visual GameTutorial: influence/objective, card-supported
+actions versus bluffs, costs, opponent targeting, challenge consequences, blocks.
+Play -> Learn to play starts guided local practice; first local practice also
+shows it automatically. Rules opens Tutorial or Rules & Roles. Practice pauses
+and restores its prior timescale; online tutorial explicitly warns live match
+continues. Back/Next/Skip/Start Playing controls; relevant UI gets a gold frame.
+Opening tour waits for card-deal presentation. Runtime UI only, no prefab/YAML
+regeneration. QA preference restored to unseen after checks.
+
+ActionButtonView adds gold YOUR CARD badge/border using ONLY human hidden hand
+and Rules.ClaimedRole. Duke+Ambassador fixture marked exactly Tax+Exchange;
+unsupported role actions remain legal bluffs, and insufficient-coin constraints
+remain unchanged. Your-turn caption explains the distinction.
+
+Assassinate/Steal/Coup replace bottom actions with large eligible opponent name
+buttons (3+2 for six players), plus explicit Cancel. Original portrait tapping
+still works, with stronger gold pulse honoring reduced motion. Assassinate
+status explicitly says choose a profile/name. Illegal targets revalidated before
+submission; targeting clears when turn/phase changes. No new shader dependency:
+lightweight UI tint/pulse effects preserve mobile rendering cost.
+
+Play QA 1080x1920 six-player: five target buttons + cancel; cancel left coins5
+and restored actions; select seat1 spent3 (coins2) and entered AwaitingChallenge
+with correct pending target. Tutorial all six pages, completion closed overlay
+and restored timeScale1. Final compile zero errors. Captures:
+Tutorial_Portrait_Checked.png, Hand_Supported_Actions.png,
+Target_Selection_Final.png, Tutorial_Last_Step.png. Final target styling inspected.
+Stopped Play mode; Android build pending (see follow-up). Device FPS/audio not
+measured. Coup Editor launched separately; chill-games Editor not modified.
+
+## 2026-10-22 — Codex: voice-enabled APK ready
+
+Android build84575f8d5e succeeded,0errors/18warnings,~78MiB APK at
+Builds/Coup-Veiled-Court-Mobile.apk. Includes Vivox, table voice controls and all
+latest lobby/table layout changes. No phone connected, so not installed by USB.
+Live editor channel join/leave verified as described below; two-device audible
+voice test remains pending. Backend public /ready healthy.
+
+## 2026-10-22 — Codex: Vivox provisioned and live channel verified
+
+After user signed in, enabled Voice and Text Chat for their dashboard Coup
+project93eafc2d-b8b9-47e9-8881-301edd19ea24 (organization13469040852641), production
+environment. Optional Safe Text unchecked. Setup complete and overview Vivox on
+verified; proof Captures/Vivox_Enabled_Overview.png. Existing Editor cloud link
+0ebff122... left intact: custom Vivox credentials are passed explicitly by SDK.
+
+Stored connection settings/signing key ONLY in ignored server/.env.local with
+mode0600, never client assets/review log. Enabled Reject UAS tokens: server-minted
+VAT required for channel access. Restarted persistent local backend using
+install-local-service.mjs; public HTTPS /ready healthy with authenticated Mongo.
+
+Real Play-mode test with authenticated table: Vivox IsLoggedIn=true and one
+active audio channel, participant Player(You), microphone remains muted. Speaker
+toggle updates SOUND:OFF. Leave reaches logged=false/channels0; rejoin reaches
+channels1. Returning to Lobby reaches logged=false/channels0. Repeated join
+AFTER enabling Reject UAS tokens also successful. Final console zero errors.
+No microphone capture requested and no two-device speech/hearing verification.
+USB adb inventory empty. Android APK build84575f8d5e running; see follow-up result.
+
+Tool caveat discovered: repeated identical execute_code snippets can return
+stale-looking values; unique verification strings gave current SDK state.
+
+## 2026-10-22 — Codex: table voice UI and Vivox integration (provisioning pending)
+
+User chose opt-in current-table voice and asked Codex to enable the service.
+Installed official com.unity.services.vivox16.12.1 via Package Manager; added
+Core/Vivox assembly references. TableView attaches TableVoiceChat at runtime.
+VOICE opens animated panel with join/leave, microphone, speaker controls and
+participant/speaking list. Starts muted, microphone permission requested only
+on unmute, backgrounding mutes mic, scene exit logs out. SDK operations serialized
+across instances; server token provider never includes a secret in the client.
+Android Gradle postprocessor adds mic/audio permissions and defers launch-time
+permission dialog; iOS microphone purpose string set through Editor.
+
+Server voice:access socket handler derives user and channel from authenticated
+current seat. Channel hash includes code+creation timestamp; 90s HMAC login/join
+tokens only, no arbitrary client target/channel/action. Server needs VIVOX_SERVER,
+VIVOX_DOMAIN, VIVOX_ISSUER, VIVOX_SIGNING_KEY environment config. README updated.
+
+Verified compile zero errors; node voice+socket tests6/6 passed. Play mode panel
+capture Captures/Table_Voice_Controls.png at1080x1920 inspected. Offline join
+shows unavailable, mic stays disabled. Returning to Lobby cleanup no errors.
+Transient Unity Inspector preview MissingReference exception from selected
+image destroyed on scene change was cleared by deselecting; not game code.
+Stopped Play mode in Lobby. No APK rebuilt, no microphone recording/audio test.
+
+BLOCKER: Unity Cloud in-app browser redirects to sign-in. User was asked to sign
+in there; tab marked handoff. No Vivox cloud service enabled, no credentials
+provisioned, no server restart/deployment. Live two-device communication not yet
+verified; do not claim voice is live. Continue provisioning after user signs in.
+
+## 2026-10-22 — Codex: tighter 1920 lobby spacing (finished)
+
+Reduced compact endpoint gap40 ->22 reference units at safe height1920 per user.
+Tall endpoint55 at2400 unchanged. Dependent rows/logo update automatically.
+Verified Play capture Captures/Lobby_1920_Tighter.png at1080x1920, no compile
+errors. Stopped Play mode. No APK rebuild.
+
+## 2026-10-22 — Codex: responsive lobby gaps (finished)
+
+Replaced fixed tall-screen row coordinates with height-aware gaps: 40 reference
+units at safe height1920, interpolating to55 at2400. Each row derives from the
+previous row's half-heights plus gap, preserving button dimensions. Logo minimum
+center derives from feature row top + gap + logo half-height, preventing compact
+layout crowding. Safe-area bottom anchoring and LobbyMotion rest positions kept.
+
+Selected existing GameView QA presets and inspected native captures
+Captures/Lobby_Adaptive_Short.png (1080x1920) and
+Captures/Lobby_Adaptive_Tall.png (1080x2400). Both show distinct row spacing,
+logo clearance and bottom shortcuts inside screen. Console zero errors. Stopped
+Play mode. No APK rebuild/device verification.
+
+## 2026-10-22 — Codex: more lobby padding (finished)
+
+Further increased row gaps to approximately 50–58 reference units: Event220,
+Casual/Ranked380, Play575, SeasonPass/RankedTier820; shortcuts remain73. Expanded
+Actions band1000 and minimum logo center1080. Verified Play capture at
+1080x2400, Captures/Lobby_Button_Padding_More.png. No compile errors. Stopped
+Play mode; no APK rebuild.
+
+## 2026-10-22 — Codex: lobby button spacing (finished)
+
+Increased vertical gaps in LobbyResponsiveLayout: bottom shortcuts y73,
+Event198, Casual/Ranked338, Play510, SeasonPass/RankedTier730. Previously upper
+rows were y182/305/455/655; gaps now approximately 28–35 reference units.
+Actions band height900, minimum logo center990 to clear the expanded stack.
+Uses LobbyMotion.SetRestingPosition to preserve spacing through entrance/idle
+animations, retaining authored horizontal anchors and sizes. No prefab edits.
+
+Verified Play-mode native 1080x2400 capture Captures/Lobby_Button_Padding.png:
+visible row gaps, safe bottom margin, logo above cards. Compilation console zero
+errors. Stopped Play mode. No APK rebuilt.
+
 ## 2026-10-22 — Codex: piles immediately above turn bar (finished)
 
 Per user placement request, draw/discard center follows StatusPlate y +185 on

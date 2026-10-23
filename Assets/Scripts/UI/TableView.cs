@@ -81,6 +81,7 @@ namespace Coup.Game.UI
         private CardView _revealCard;
 
         private ActionKind? _awaitingTarget;
+        private TargetSelectionPanel _targetSelection;
 
         private void Awake()
         {
@@ -102,6 +103,7 @@ namespace Coup.Game.UI
             UIFactory.ApplyFonts(transform);
             Sfx.BindClicks(transform);
             if (GetComponent<TableResponsiveLayout>() == null) gameObject.AddComponent<TableResponsiveLayout>();
+            if (GetComponent<TableVoiceChat>() == null) gameObject.AddComponent<TableVoiceChat>();
 
             if (match != null)
             {
@@ -560,6 +562,7 @@ namespace Coup.Game.UI
             var game = match?.Game;
             if (game == null) return;
 
+            if (game.Phase != GamePhase.AwaitingAction || game.CurrentPlayerIndex != match.humanSeat) _awaitingTarget = null;
             EnsureSeats(game);
             RefreshOpponents(game);
             RefreshCentre(game);
@@ -569,6 +572,7 @@ namespace Coup.Game.UI
             RefreshStatus(game);
             RefreshModal(game);
             PlayOpening();
+            if (MatchLaunch.TutorialRequested || (!match.playOnline && PlayerPrefs.GetInt("Coup.TutorialSeen", 0) == 0)) { MatchLaunch.TutorialRequested = false; StartCoroutine(OpenTutorialAfterDeal()); }
         }
 
         /// <summary>
@@ -798,12 +802,16 @@ namespace Coup.Game.UI
                     card.SetDimmed(false);
                     card.SetInteractable(choosingLoss);
                     card.SetHighlight(choosingLoss);
+                    var supportedAction = ActionOrder.FirstOrDefault(k => Rules.ClaimedRole(k) == role);
+                    var supportsAction = Rules.ClaimedRole(supportedAction) == role;
+                    card.SetActionSupport(!choosingLoss && supportsAction && game.Phase == GamePhase.AwaitingAction && game.CurrentPlayerIndex == match.humanSeat);
                 }
                 else
                 {
                     var role = revealed[i - influence.Count];
                     if (card.Role != role) card.ShowRole(role, animate: true);
                     card.SetDimmed(true);
+                    card.SetActionSupport(false);
                     card.SetInteractable(false);
                 }
             }
@@ -841,8 +849,17 @@ namespace Coup.Game.UI
                     ? game.Players.Any(p => game.CanDeclare(match.humanSeat, kind, p.Index))
                     : game.CanDeclare(match.humanSeat, kind));
                 pair.Value.SetAvailable(legal);
+                var claimed = Rules.ClaimedRole(kind);
+                pair.Value.SetSupportedByHand(claimed.HasValue && game.Players[match.humanSeat].HasRole(claimed.Value), art);
                 pair.Value.SetChosen(_awaitingTarget == kind);
             }
+            if (_targetSelection == null) _targetSelection = gameObject.AddComponent<TargetSelectionPanel>();
+            _targetSelection.Present(_awaitingTarget, game, match.humanSeat, art, _actionBar, seat =>
+            {
+                var kind = _awaitingTarget;
+                if (!kind.HasValue || !game.CanDeclare(match.humanSeat, kind.Value, seat)) return;
+                _awaitingTarget = null; match.HumanDeclare(kind.Value, seat);
+            }, () => { _awaitingTarget = null; Refresh(); });
         }
 
         private void RefreshStatus(CoupGame game)
@@ -874,7 +891,7 @@ namespace Coup.Game.UI
                         return new Prompt($"{Name(game, game.CurrentPlayerIndex)}'s turn", "They are choosing what to do.");
                     return game.Players[me].MustCoup
                         ? new Prompt("You must Coup", "You have 10 coins. Pay 7 to make a player lose a card.")
-                        : new Prompt("Your turn", "Tap an action. The line under its name is what it does.");
+                        : new Prompt("Your turn", "Glowing actions match your cards. Other role actions can be bluffs.");
 
                 case GamePhase.AwaitingChallenge:
                 {
@@ -941,8 +958,8 @@ namespace Coup.Game.UI
         {
             ActionKind.Steal => new Prompt("Steal 2 coins",
                 "Tap a player. You claim the Captain. They can stop you. Tap Steal again to cancel."),
-            ActionKind.Assassinate => new Prompt("Make them lose a card",
-                "Tap a player. This costs 3 coins and claims the Assassin. Tap Assassinate again to cancel."),
+            ActionKind.Assassinate => new Prompt("CHOOSE WHO TO ASSASSINATE",
+                "Tap a glowing opponent profile or choose their name below. Costs 3 coins."),
             ActionKind.Coup => new Prompt("Force a lost card",
                 "Tap a player. This costs 7 coins and cannot be stopped. Tap Coup again to cancel."),
             _ => new Prompt("Choose a player", "Tap who this hits. Tap the action again to cancel.")
@@ -1122,7 +1139,22 @@ namespace Coup.Game.UI
                 keep => match.HumanExchangeKeep(keep.ToList()));
         }
 
+        private System.Collections.IEnumerator OpenTutorialAfterDeal()
+        {
+            yield return new WaitForSecondsRealtime(2f);
+            GameTutorial.Open(this);
+        }
+
         private void ShowRules()
+        {
+            _modal.ShowChoices("LEARN THE COURT", "Replay the guided tutorial or browse every role and action.",
+                new (string label, Color tint, System.Action act)[] {
+                    ("TUTORIAL", UIFactory.Navy, () => GameTutorial.Open(this)),
+                    ("RULES & ROLES", UIFactory.Navy, ShowRulesReference)
+                });
+        }
+
+        private void ShowRulesReference()
         {
             // One terse line per action here; the full wording lives behind a long
             // press on the action itself, so this stays scannable.
@@ -1321,7 +1353,7 @@ namespace Coup.Game.UI
 
         private void OnOpponentClicked(PlayerPanelView panel)
         {
-            if (!_awaitingTarget.HasValue) return;
+            if (!_awaitingTarget.HasValue || match.Game == null || !match.Game.CanDeclare(match.humanSeat, _awaitingTarget.Value, panel.Seat)) return;
             Sfx.Play(Cue.UiClick);
             var kind = _awaitingTarget.Value;
             _awaitingTarget = null;

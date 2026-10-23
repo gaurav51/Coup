@@ -197,6 +197,7 @@ namespace Coup.Game.UI
         private async Task Load(string page,CancellationToken token) {
             switch(page) {
                 case "Play":
+                    Button("Learn to play · guided tutorial",()=>{MatchLaunch.Tutorial();OpenGame();return Task.CompletedTask;});
                     var active=(await Get("/v1/session/active",token)).Get("active");
                     if(active!=null&&active.Type!=JsonValue.Kind.Null) {Text("Your table "+active.Str("code")+" is ready to resume.");Button("Resume match",()=>{MatchLaunch.Resume();OpenGame();return Task.CompletedTask;});}
                     Button("Casual · find an opponent",()=>{LaunchQueue("casual");return Task.CompletedTask;});

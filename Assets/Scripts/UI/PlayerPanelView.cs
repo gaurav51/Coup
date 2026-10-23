@@ -296,6 +296,13 @@ namespace Coup.Game.UI
             }
         }
 
+        private void LateUpdate()
+        {
+            if (!Targetable || targetGlow == null) return;
+            var pulse = PlayerPrefs.GetInt("Coup.ReducedMotion", 0) != 0 ? 1f : .75f + .25f * Mathf.Sin(Time.unscaledTime * 5f);
+            targetGlow.color = new Color(1f, .78f, .18f, pulse);
+        }
+
         public void OnPointerClick(PointerEventData eventData)
         {
             if (!Targetable) return;

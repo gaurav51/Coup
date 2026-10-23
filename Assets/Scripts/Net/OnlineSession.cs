@@ -24,6 +24,7 @@ namespace Coup.Game
         private string _code, _token;
         private float _deadlineAt = -1, _windowSeconds = -1, _queueDeadlineAt = -1;
         private string _queueHeading;
+        private bool _switchingTable;
         /// <summary>Seconds until the matchmaking window lapses, or -1 when not queueing.</summary>
         public int QueueSecondsRemaining => _queueDeadlineAt < 0 ? -1 : Mathf.Max(0, Mathf.CeilToInt(_queueDeadlineAt - Time.realtimeSinceStartup));
         /// <summary>How much of this turn's clock is left, 0..1, or -1 when there is no clock.</summary>
@@ -55,6 +56,7 @@ namespace Coup.Game
                 ? "Starting in " + left + "s, or sooner if the table fills."
                 : "Seating the court…");
         }
+        public Task<JsonValue> VoiceAccess(string action) => Ack("voice:access", JsonValue.FromObject(("action", JsonValue.FromString(action))));
         public void Begin() => Reconnect();
         public void CheckConnection() { if (!_socket.IsOpen && !_terminal) Reconnect(); }
         private void OnClosed(string message) { _ready = false; if (!_terminal) Reconnect(); }
@@ -73,6 +75,27 @@ namespace Coup.Game
                         if (!string.IsNullOrEmpty(_code)) response = await Ack("session:resume", JsonValue.FromObject(("code", JsonValue.FromString(_code)), ("token", JsonValue.FromString(_token))));
                         else {
                             var active = (await PlatformClient.Instance.Request("GET", "/v1/session/active", null, _life.Token)).Get("active");
+                            if (active != null && active.Type != JsonValue.Kind.Null && !MatchLaunch.ResumeRequested
+                                && (!string.IsNullOrEmpty(MatchLaunch.QueueMode) || !string.IsNullOrWhiteSpace(_match.joinCode)))
+                            {
+                                var choice = new TaskCompletionSource<bool>();
+                                using (_life.Token.Register(() => choice.TrySetCanceled()))
+                                {
+                                    Show("SAVED TABLE " + active.Str("code") + "\nYou already have a seat. Resume it, or leave it to find a new table. Leaving abandons that seat.");
+                                    AddButton("Resume saved table", new Vector2(-205,-185), () => choice.TrySetResult(true));
+                                    AddButton("Leave & find new", new Vector2(205,-185), () => choice.TrySetResult(false));
+                                    var resume = await choice.Task;
+                                    if (resume) MatchLaunch.Resume();
+                                    Show("Connecting to your table…");
+                                    if (!resume)
+                                    {
+                                        _switchingTable = true;
+                                        try { await Ack("session:recover", JsonValue.FromObject()); await Ack("lobby:leave", JsonValue.FromObject()); }
+                                        finally { _switchingTable = false; }
+                                        active = null;
+                                    }
+                                }
+                            }
                             if (active != null && active.Type != JsonValue.Kind.Null) response = await Ack("session:recover", JsonValue.FromObject());
                             else if (!string.IsNullOrEmpty(MatchLaunch.QueueMode)) response = await Ack("queue:join", JsonValue.FromObject(("name", JsonValue.FromString(CleanName())), ("mode", JsonValue.FromString(MatchLaunch.QueueMode))));
                             else if (!string.IsNullOrWhiteSpace(_match.joinCode)) response = await Ack("lobby:join", JsonValue.FromObject(("code", JsonValue.FromString(_match.joinCode.Trim())), ("name", JsonValue.FromString(CleanName()))));
@@ -130,7 +153,7 @@ namespace Coup.Game
         }
         private string CleanName() => PlatformClient.Instance.Profile?.Str("name") ?? "Player";
         private void OnSocketEvent(string name, JsonValue payload) {
-            if (_disposed) return;
+            if (_disposed || _switchingTable) return;
             switch(name) {
                 case "lobby:state":
                     _lobby = payload;
@@ -169,7 +192,7 @@ namespace Coup.Game
             // Casual deals at four, ranked at two. Saying which makes the wait legible.
             var target = MatchLaunch.QueueMode == "ranked" ? 2 : 4;
             var text = queue
-                ? "FINDING PLAYERS\n" + MatchLaunch.QueueMode.ToUpperInvariant() + "  ·  " + players.Count + " of " + target + " seated"
+                ? "FINDING PLAYERS\n" + MatchLaunch.QueueMode.ToUpperInvariant() + "  ·  " + players.Count + " of " + target + " seated\nTABLE " + _lobby.Str("code")
                 : "PRIVATE TABLE  " + _lobby.Str("code");
             foreach (var player in players) text += "\n" + player.Str("name") + (player.Flag("host") ? "  · HOST" : "") + (!player.Flag("connected") ? "  · RECONNECTING" : player.Flag("ready") ? "  · READY" : "  · WAITING");
             _queueHeading = queue && error == null && _queueDeadlineAt >= 0 ? text : null;

@@ -1,1 +1,13 @@
-{"name":"Coup.Client","references":["Coup.Core","Coup.AI","Unity.TextMeshPro","Unity.ugui","Unity.InputSystem","Unity.Purchasing"]}
+{
+  "name": "Coup.Client",
+  "references": [
+    "Coup.Core",
+    "Coup.AI",
+    "Unity.TextMeshPro",
+    "Unity.ugui",
+    "Unity.InputSystem",
+    "Unity.Purchasing",
+    "Unity.Services.Core",
+    "Unity.Services.Vivox"
+  ]
+}

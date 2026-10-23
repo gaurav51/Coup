@@ -72,6 +72,11 @@ namespace Coup.Game
         private OnlineSession _online;
         private int _lastServerEvent;
 
+        public System.Threading.Tasks.Task<JsonValue> VoiceAccess(string action)
+        {
+            if (_online == null || !_online.Connected) throw new InvalidOperationException("Join an online table to use voice.");
+            return _online.VoiceAccess(action);
+        }
         public bool OnlineConnected => _online?.Connected ?? false;
         public int OnlineSecondsRemaining => _online?.SecondsRemaining ?? -1;
         public float OnlineTurnProgress => _online?.TurnProgress ?? -1f;

@@ -30,6 +30,12 @@ namespace Coup.Game.UI
             var right = _lastSafe.xMax / Screen.width;
             var bottom = _lastSafe.yMin / Screen.height;
             var top = _lastSafe.yMax / Screen.height;
+            var safeHeight = _lastSize.y * (top - bottom);
+            var gap = Mathf.Lerp(22, 55, Mathf.InverseLerp(1920, 2400, safeHeight));
+            var eventY = 73 + 44 + gap + 51;
+            var matchY = eventY + 51 + gap + 54;
+            var playY = matchY + 54 + gap + 87;
+            var featureY = playY + 87 + gap + 105;
             if (_hud != null)
             {
                 _hud.anchorMin = new Vector2(left, top);
@@ -43,19 +49,37 @@ namespace Coup.Game.UI
                 _actions.anchorMin = new Vector2(left, bottom);
                 _actions.anchorMax = new Vector2(right, bottom);
                 _actions.pivot = new Vector2(.5f, 0);
-                _actions.sizeDelta = new Vector2(0, 800);
+                _actions.sizeDelta = new Vector2(0, featureY + 105);
+                SpaceRow("Collection", 73);
+                SpaceRow("Shop", 73);
+                SpaceRow("Missions", 73);
+                SpaceRow("Event", eventY);
+                SpaceRow("Casual", matchY);
+                SpaceRow("Ranked", matchY);
+                SpaceRow("Play", playY);
+                SpaceRow("SeasonPass", featureY);
+                SpaceRow("RankedTier", featureY);
                 _actions.anchoredPosition = Vector2.zero;
             }
             if (_logo != null)
             {
-                // On shorter tablets, leave room above the season/ranked cards.
-                var desired = Mathf.Max(_lastSize.y * .5f - 12, bottom * _lastSize.y + 915);
+                // Measure clearance from the action stack, including the logo half-height.
+                var desired = Mathf.Max(_lastSize.y * .5f - 12, bottom * _lastSize.y + featureY + 105 + gap + _logo.rect.height * .5f);
                 _logo.anchorMin = _logo.anchorMax = new Vector2(.5f, 0);
                 var position = new Vector2(0, desired);
                 var motion = GetComponent<LobbyMotion>();
                 if (motion != null) motion.SetRestingPosition(_logo, position);
                 else _logo.anchoredPosition = position;
             }
+        }
+        private void SpaceRow(string name, float y)
+        {
+            var rect = _actions.Find(name) as RectTransform;
+            if (rect == null) return;
+            var position = new Vector2(rect.anchoredPosition.x, y);
+            var motion = GetComponent<LobbyMotion>();
+            if (motion != null) motion.SetRestingPosition(rect, position);
+            else rect.anchoredPosition = position;
         }
     }
 }

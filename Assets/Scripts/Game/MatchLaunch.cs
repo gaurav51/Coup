@@ -13,13 +13,18 @@ namespace Coup.Game
         public static void Queue(string mode) { Host(); QueueMode = mode == "ranked" ? "ranked" : "casual"; }
         public static void Resume() { Host(); ResumeRequested = true; }
 
+        public static bool TutorialRequested { get; set; }
+
         public static bool Pending { get; private set; }
         public static bool Online { get; private set; }
         public static bool AutoStart { get; private set; } = true;
         public static string JoinCode { get; private set; } = "";
 
+        public static void Tutorial() { Local(); TutorialRequested = true; }
+
         public static void Local()
         {
+            TutorialRequested = false;
             QueueMode = "";
             ResumeRequested = false;
             Pending = true;
@@ -30,6 +35,7 @@ namespace Coup.Game
 
         public static void Host()
         {
+            TutorialRequested = false;
             QueueMode = "";
             ResumeRequested = false;
             Pending = true;
@@ -40,6 +46,7 @@ namespace Coup.Game
 
         public static void Join(string code)
         {
+            TutorialRequested = false;
             QueueMode = "";
             ResumeRequested = false;
             Pending = true;

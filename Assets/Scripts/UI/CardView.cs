@@ -41,6 +41,8 @@ namespace Coup.Game.UI
         private CoupArt _art;
         private bool _dimmed;
         private bool _highlighted;
+        private bool _actionSupported;
+        private Image _actionSupportRim;
         private bool _compact;
         private bool _flipping;
         private bool _dealing;
@@ -244,6 +246,24 @@ namespace Coup.Game.UI
                 glow.color = new Color(1f, 0.85f, 0.4f, 0f);
                 CoupTween.ColorTo(glow, new Color(1f, 0.85f, 0.4f, 0.9f), CoupTween.Quick);
                 CoupTween.Punch(root, 0.06f, CoupTween.Quick, RestingScale);
+            }
+        }
+
+        public void SetActionSupport(bool on)
+        {
+            _actionSupported=on;
+            if (_actionSupportRim==null)
+            {
+                _actionSupportRim=UIFactory.Image("ActionSupportRim",transform,frame!=null?frame.sprite:null,Vector2.zero,Vector2.zero,false);
+                var rt=_actionSupportRim.rectTransform;rt.anchorMin=Vector2.zero;rt.anchorMax=Vector2.one;
+                rt.offsetMin=new Vector2(-5,-5);rt.offsetMax=new Vector2(5,5);
+                _actionSupportRim.type=frame!=null?frame.type:Image.Type.Sliced;
+            }
+            _actionSupportRim.gameObject.SetActive(on);
+            if(on&&Role.HasValue)
+            {
+                var color=Color.Lerp(_art!=null?_art.Accent(Role.Value):UIFactory.Gold,Color.white,.35f);
+                _actionSupportRim.color=color;
             }
         }
 

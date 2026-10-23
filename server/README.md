@@ -197,3 +197,24 @@ stay in memory. Native bridge source compilation has been checked; physical-devi
 lifecycle, encrypted-backup restore, offline-to-online switching, store sandbox and
 provider login tests are still required before release. Automated tests cannot
 establish that every possible production bug is covered.
+
+### Table voice (Vivox)
+
+Enable Vivox for the linked Unity Cloud project. Configure these **server-only**
+environment variables using the credentials supplied by Unity:
+
+- `VIVOX_SERVER`: Vivox API server URL.
+- `VIVOX_DOMAIN`: Vivox domain.
+- `VIVOX_ISSUER`: token issuer.
+- `VIVOX_SIGNING_KEY`: secret signing key; never include in Unity resources/builds.
+
+Restart the game service after configuration. `voice:access` issues config or
+90-second login/join tokens only for the authenticated socket's current seat.
+Channel IDs include table creation time to isolate reused lobby codes. No client
+can request an arbitrary user, channel, moderation action or signing lifetime.
+The client joins audio-only, starts muted, and disconnects on table exit.
+
+Verification still required after provisioning: two-device join/hearing, mic
+permission denial, individual devices' audio routing, disconnect/reconnect,
+background mute, and release Android/iOS builds. Current unit/socket tests verify
+server authorization and token signing, not actual Vivox connectivity.

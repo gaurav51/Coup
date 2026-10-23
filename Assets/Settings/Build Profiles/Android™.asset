@@ -607,7 +607,7 @@ MonoBehaviour:
     - line: '|   enableCrashReportAPI: 0'
     - line: '|   cameraUsageDescription: '
     - line: '|   locationUsageDescription: '
-    - line: '|   microphoneUsageDescription: '
+    - line: '|   microphoneUsageDescription: Use your microphone to speak with players after joining table voice chat.'
     - line: '|   bluetoothUsageDescription: '
     - line: '|   macOSTargetOSVersion: 12.0'
     - line: '|   switchNMETAOverride: '
@@ -1012,7 +1012,7 @@ MonoBehaviour:
         m_ExportAsGoogleAndroidProject: 0
         m_DebugSymbolLevel: 1
         m_DebugSymbolFormat: 5
-        m_CurrentDeploymentTargetId: __builtin__target_default
+        m_CurrentDeploymentTargetId: 3dab6896
         m_BuildType: 2
         m_LinkTimeOptimization: 0
         m_BuildAppBundle: 0

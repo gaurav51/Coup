@@ -64,6 +64,7 @@ namespace Coup.EditorTools
         private static int CapFor(string path)
         {
             if (path.Contains("/02_Backgrounds/")) return 4096;   // full-resolution portrait phones
+            if (path.Contains("/Tutorial/")) return 2048; // shared tutorial ornament atlas
             if (path.Contains("/Actions/")) return 512;
             if (path.Contains("/04_Characters_And_Art_Reference/")) return 1024;
             if (path.Contains("/Cards/")) return 1024;

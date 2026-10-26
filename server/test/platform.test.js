@@ -327,3 +327,40 @@ test("a purchase verified after account deletion cannot create receipts or curre
   assert.equal(await store.collection("receipts").countDocuments({_id:"google:deleted-purchase"}),0);
   assert.equal(await store.collection("ledger").countDocuments({_id:"google:deleted-purchase"}),0);
 });
+
+test("worker recovers an expired lease after sleep but cannot take over a replacement owner", async () => {
+  const rooms = await new DurableRooms(store, {worker: "sleep-regression"}).open();
+  try {
+    await store.collection("workers").updateOne({_id: rooms.worker}, {$set:{expiresAt:new Date(0)}});
+    rooms.closed=true;
+    await rooms.renew();
+    assert.equal(rooms.closed,false);
+    const first=await rooms.create({name:"First",socketId:"sleep-a",accountId:"sleep-a"});
+    const second=await rooms.create({name:"Second",socketId:"sleep-b",accountId:"sleep-b"});
+    assert.notEqual(first.code,second.code);
+    await store.collection("workers").updateOne({_id:rooms.worker},{$set:{owner:"replacement"}});
+    await assert.rejects(rooms.renew(),/lease was lost/);
+    await assert.rejects(rooms.setReady("sleep-a",true),/ownership changed/);
+  } finally {await rooms.close();}
+});
+
+test("two durable tables keep independent seats and states across concurrent recovery", async () => {
+  const rooms=await new DurableRooms(store,{worker:"multi-table-regression"}).open();
+  try {
+    const a=await rooms.create({name:"A",socketId:"a",accountId:"account-a"});
+    const b=await rooms.create({name:"B",socketId:"b",accountId:"account-b"});
+    await rooms.join({code:a.code,name:"A2",socketId:"a2",accountId:"account-a2"});
+    await rooms.join({code:b.code,name:"B2",socketId:"b2",accountId:"account-b2"});
+    for(const id of ["a","a2","b","b2"])await rooms.setReady(id,true);
+    await Promise.all([rooms.start("a",1),rooms.start("b",2)]);
+    await Promise.all([rooms.disconnect("a2"),rooms.disconnect("b2")]);
+    const [ra,rb]=await Promise.all([rooms.recover({accountId:"account-a2",socketId:"a-new"}),rooms.recover({accountId:"account-b2",socketId:"b-new"})]);
+    assert.equal(ra.code,a.code);assert.equal(rb.code,b.code);
+    assert.equal(ra.seat,1);assert.equal(rb.seat,1);
+    assert.equal(ra.states.find(r=>r.socketId==="a-new").state.you,1);
+    assert.equal(rb.states.find(r=>r.socketId==="b-new").state.you,1);
+    const before=rooms.peek(b.code).game.turnNumber;
+    await rooms.act("a",{type:"declare",action:"Income",target:-1});
+    assert.equal(rooms.peek(b.code).game.turnNumber,before);
+  } finally {await rooms.close();}
+});

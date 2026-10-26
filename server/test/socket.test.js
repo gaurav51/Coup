@@ -200,3 +200,28 @@ test("a dropped connection can resume the same seat", async () => {
     await shutdown(app, sockets);
   }
 });
+
+test("two live tables recover their own seats without cross-table state delivery", async () => {
+  const app=await boot();let sockets=[];
+  try {
+    const one=await seatTwo(app.url,["One-A","One-B"]);
+    const two=await seatTwo(app.url,["Two-A","Two-B"]);
+    sockets=[one.a,one.b,two.a,two.b];
+    assert.notEqual(one.created.code,two.created.code);
+    one.b.disconnect();two.b.disconnect();
+    const [ra,rb]=await Promise.all([connect(app.url),connect(app.url)]);sockets.push(ra,rb);
+    const sa=next(ra,"game:state"),sb=next(rb,"game:state");
+    const replies=await Promise.all([
+      ack(ra,"session:resume",{code:one.created.code,token:one.joined.token}),
+      ack(rb,"session:resume",{code:two.created.code,token:two.joined.token})]);
+    assert.ok(replies.every(r=>r.ok));
+    const [a,b]=await Promise.all([sa,sb]);
+    assert.equal(a.you,1);assert.equal(b.you,1);
+    assert.equal(a.players[1].name,"One-B");assert.equal(b.players[1].name,"Two-B");
+    let leaked=false;rb.on("game:state",()=>{leaked=true;});
+    const changed=next(one.a,"game:state");
+    assert.equal((await ack(one.a,"game:declare",{action:"Income"})).ok,true);
+    await changed;await new Promise(resolve=>setTimeout(resolve,50));
+    assert.equal(leaked,false);
+  } finally {await shutdown(app,sockets);}
+});

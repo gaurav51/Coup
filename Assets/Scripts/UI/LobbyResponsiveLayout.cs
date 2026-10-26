@@ -32,7 +32,9 @@ namespace Coup.Game.UI
             var top = _lastSafe.yMax / Screen.height;
             var safeHeight = _lastSize.y * (top - bottom);
             var gap = Mathf.Lerp(22, 55, Mathf.InverseLerp(1920, 2400, safeHeight));
-            var eventY = 73 + 44 + gap + 51;
+            // The bottom row's centre; 73 left it about 29 above the screen edge, against the gesture bar.
+            const float rowY = 97;
+            var eventY = rowY + 44 + gap + 51;
             var matchY = eventY + 51 + gap + 54;
             var playY = matchY + 54 + gap + 87;
             var featureY = playY + 87 + gap + 105;
@@ -50,9 +52,9 @@ namespace Coup.Game.UI
                 _actions.anchorMax = new Vector2(right, bottom);
                 _actions.pivot = new Vector2(.5f, 0);
                 _actions.sizeDelta = new Vector2(0, featureY + 105);
-                SpaceRow("Collection", 73);
-                SpaceRow("Shop", 73);
-                SpaceRow("Missions", 73);
+                SpaceRow("Collection", rowY);
+                SpaceRow("Shop", rowY);
+                SpaceRow("Missions", rowY);
                 SpaceRow("Event", eventY);
                 SpaceRow("Casual", matchY);
                 SpaceRow("Ranked", matchY);

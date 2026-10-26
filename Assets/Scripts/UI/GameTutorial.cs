@@ -91,7 +91,7 @@ namespace Coup.Game.UI
             _heading=UIFactory.Image("Heading",_sheet,_headingArt!=null?_headingArt:_table.art.roundedPanel,new Vector2(SheetWidth,180),Vector2.zero,false).rectTransform;
             var headingArt=_heading.GetComponent<Image>();headingArt.type=Image.Type.Sliced;
             if(_headingArt!=null)headingArt.pixelsPerUnitMultiplier=_headingArt.rect.height/180;else headingArt.color=UIFactory.Navy;
-            _title=Label("Title",_heading,"",43,new Vector2(680,60),new Vector2(0,26));_title.color=UIFactory.Gold;
+            _title=Label("Title",_heading,"",43,new Vector2(680,60),new Vector2(0,26));_title.color=UIFactory.Gold;PanelTheme.Title(_title);
             _subtitle=Label("Subtitle",_heading,"",30,new Vector2(680,46),new Vector2(0,-30));
             _visual=UIFactory.Rect("Illustration",_sheet,new Vector2(SheetWidth,IllustrationHeight),Vector2.zero);
             // One plaque height for every page, sized to the longest explanation, so nothing jumps.
@@ -100,6 +100,7 @@ namespace Coup.Game.UI
             foreach(var body in Bodies)tallest=Mathf.Max(tallest,_body.GetPreferredValues(body,SheetWidth-150,0).y);
             _explanationHeight=Mathf.Clamp(tallest+100,260,480);
             _explanation=Plaque("Explanation",_sheet,new Vector2(SheetWidth,_explanationHeight),Vector2.zero,200);
+            PanelAura.Attach(_explanation,_table.art,UIFactory.Gold,16);
             _body.rectTransform.SetParent(_explanation,false);_body.rectTransform.anchoredPosition=Vector2.zero;
             _body.rectTransform.sizeDelta=new Vector2(SheetWidth-150,_explanationHeight-84);
             _progress=Label("Progress",_sheet,"",23,new Vector2(SheetWidth-40,38),Vector2.zero);_progress.color=UIFactory.Gold;

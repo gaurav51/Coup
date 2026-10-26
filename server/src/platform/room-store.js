@@ -35,9 +35,10 @@ export class DurableRooms extends RoomStore {
 
   async renew() {
     const result = await this.db.collection("workers").updateOne(
-      { _id: this.worker, owner: this.owner, expiresAt: { $gt: new Date() } },
+      { _id: this.worker, owner: this.owner },
       { $set: { expiresAt: new Date(Date.now() + 20000) } });
     if (!result.matchedCount) throw new Error("Room worker lease was lost.");
+    if (!this.shuttingDown) this.closed = false;
   }
 
   mutate(method, args) {
@@ -75,6 +76,7 @@ export class DurableRooms extends RoomStore {
   }
 
   async close() {
+    this.shuttingDown = true;
     clearInterval(this.heartbeat);
     await this.tail;
     this.closed = true;

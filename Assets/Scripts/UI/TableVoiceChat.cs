@@ -47,6 +47,8 @@ namespace Coup.Game.UI
             image.color = new Color(.025f, .065f, .10f, 1);
             var rim = UIFactory.Image("Rim", b.transform, _art != null ? _art.roundedBorder : null, size, Vector2.zero, false);
             rim.type = Image.Type.Sliced; rim.color = UIFactory.Gold;
+            // Only buttons inside the voice sheet take the panel pill; the table trigger matches RULES.
+            if (parent != transform.Find("Stage")) PanelTheme.Button(b);
             UIFactory.Text("Label", b.transform, label, 25, size - new Vector2(16, 10), Vector2.zero);
             b.onClick.AddListener(action); return b;
         }
@@ -61,16 +63,18 @@ namespace Coup.Game.UI
             bg.type = Image.Type.Sliced; bg.color = new Color(.02f,.045f,.075f,1);
             var rim=UIFactory.Image("Rim",_sheet,_art != null ? _art.roundedBorder : null,_sheet.sizeDelta,Vector2.zero,false);
             rim.type=Image.Type.Sliced;rim.color=UIFactory.Gold;
-            UIFactory.Text("Title",_sheet,"TABLE VOICE",40,new Vector2(800,70),new Vector2(0,345)).color=UIFactory.Gold;
+            PanelTheme.Surface(bg,rim);
+            PanelAura.Attach(_sheet,_art,UIFactory.Gold,20);
+            var title=UIFactory.Text("Title",_sheet,"TABLE VOICE",40,new Vector2(780,70),new Vector2(0,345));title.color=UIFactory.Gold;PanelTheme.Title(title);
             _status=UIFactory.Text("Body",_sheet,"Join your table's voice channel.\nMicrophone access is required; you start muted.",29,new Vector2(790,130),new Vector2(0,245));
-            _join=MakeButton("Join",_sheet,"JOIN VOICE",new Vector2(250,110),new Vector2(-275,100),ToggleJoin);
-            _mic=MakeButton("Mic",_sheet,"MIC: OFF",new Vector2(250,110),new Vector2(0,100),ToggleMic);
-            _speaker=MakeButton("Speaker",_sheet,"SOUND: ON",new Vector2(250,110),new Vector2(275,100),ToggleSpeaker);
+            _join=MakeButton("Join",_sheet,"JOIN VOICE",new Vector2(236,104),new Vector2(-258,100),ToggleJoin);
+            _mic=MakeButton("Mic",_sheet,"MIC: OFF",new Vector2(236,104),new Vector2(0,100),ToggleMic);
+            _speaker=MakeButton("Speaker",_sheet,"SOUND: ON",new Vector2(236,104),new Vector2(258,100),ToggleSpeaker);
             _joinText=_join.GetComponentInChildren<TMP_Text>();_micText=_mic.GetComponentInChildren<TMP_Text>();_speakerText=_speaker.GetComponentInChildren<TMP_Text>();
-            _people=UIFactory.Text("Participants",_sheet,"You have not joined voice.",29,new Vector2(790,260),new Vector2(0,-90));
+            _people=UIFactory.Text("Participants",_sheet,"You have not joined voice.",29,new Vector2(780,220),new Vector2(0,-70));
             _people.richText=false;
-            UIFactory.Text("Body",_sheet,"Only players who join voice can hear you.\nLeaving the table disconnects voice.",25,new Vector2(790,90),new Vector2(0,-265));
-            MakeButton("Close",_sheet,"BACK TO TABLE",new Vector2(440,90),new Vector2(0,-355),()=>PanelTransition.For(_panel,_sheet).Hide());
+            UIFactory.Text("Body",_sheet,"Only players who join voice can hear you.\nLeaving the table disconnects voice.",25,new Vector2(780,80),new Vector2(0,-215));
+            MakeButton("Close",_sheet,"BACK TO TABLE",new Vector2(440,88),new Vector2(0,-322),()=>PanelTransition.For(_panel,_sheet).Hide());
             _panel.SetActive(false);RefreshControls();
         }
         public void Open() { _panel.transform.SetAsLastSibling();PanelTransition.For(_panel,_sheet).Show(); }

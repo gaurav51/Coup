@@ -90,3 +90,39 @@ test("exchange cards are sent only to the player who drew them", () => {
   assert.equal(typeof other.players[0].influence, "number");
   assert.deepEqual(actor.hand, store.peek(result.code).game.players[0].influence);
 });
+
+test("queued seats survive a brief disconnect and retain timer and identity on resume", () => {
+  const store=new RoomStore();store.retainDisconnectedLobbies=true;
+  const first=store.quickJoin({accountId:"one",socketId:"one",name:"One",mode:"casual"});
+  const second=store.quickJoin({accountId:"two",socketId:"two",name:"Two",mode:"casual"});
+  assert.equal(first.code,second.code);
+  store.disconnect("one");
+  assert.equal(store.peek(first.code).players[1].accountId,"two");
+  assert.equal(store.startQueued(first.code),null);
+  const resumed=store.recover({accountId:"one",socketId:"one-new"});
+  assert.equal(resumed.seat,first.seat);
+  const view=resumed.recipients.find(r=>r.socketId==="one-new").lobby;
+  assert.equal(view.mode,"casual");assert.ok(view.queueDeadline>view.serverTime);
+  store.leave("one-new");
+  assert.equal(store.activeSeat("one"),null);
+});
+
+test("four accounts with the same display name join one public table", () => {
+  const store=new RoomStore();let code;
+  for(let i=0;i<4;i++){
+    const result=store.quickJoin({accountId:`same-${i}`,socketId:`same-${i}`,name:"Player",mode:"casual"});
+    if(code)assert.equal(result.code,code);else code=result.code;
+  }
+  assert.equal(store.peek(code).status,"playing");
+  assert.equal(new Set(store.peek(code).players.map(p=>p.name)).size,4);
+});
+
+test("expired disconnected casual seat is removed without preventing the remaining table from starting", () => {
+  const store=new RoomStore();store.retainDisconnectedLobbies=true;
+  const a=store.quickJoin({accountId:"a",socketId:"a",name:"A",mode:"casual"});
+  store.quickJoin({accountId:"b",socketId:"b",name:"B",mode:"casual"});
+  store.disconnect("a");store.peek(a.code).players[0].disconnectedAt=Date.now()-31000;
+  const started=store.startQueued(a.code);
+  assert.equal(started.kind,"game");assert.equal(store.activeSeat("a"),null);
+  assert.equal(store.peek(a.code).players[0].accountId,"b");
+});

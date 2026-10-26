@@ -59,14 +59,14 @@ namespace Coup.Game.UI
             var composition=UIFactory.Rect("Composition",root,new Vector2(1080,1920),Vector2.zero);
             float scale=Mathf.Min(1f,canvas.rect.height/1920f,canvas.rect.width/1080f);
             composition.localScale=Vector3.one*scale;
-            UIFactory.Text("Overline",composition,"THE COURT AWAITS",25,new Vector2(800,60),new Vector2(0,760)).color=UIFactory.Gold;
-            UIFactory.Text("Title",composition,"COUP",118,new Vector2(880,170),new Vector2(0,650)).color=UIFactory.Parchment;
-            UIFactory.Text("Subtitle",composition,"VEILED COURT",38,new Vector2(800,70),new Vector2(0,550)).color=UIFactory.Gold;
+            // No text wordmark here: the hall's COUP · Veiled Court logo stays visible behind the
+            // veil, and a second title in type floated over the banners competing with it.
             var card=UIFactory.Rect("AccountCard",composition,new Vector2(880,680),new Vector2(0,-470));
             var theme=GetComponent<LobbyScreen>();
             var fill=card.gameObject.AddComponent<Image>();fill.sprite=theme.loginPanel ?? art.roundedPanel;fill.type=Image.Type.Sliced;fill.color=Color.white;PanelTheme.Surface(fill);
-            
-            UIFactory.Text("Welcome",card,"TAKE YOUR SEAT",40,new Vector2(760,85),new Vector2(0,260)).color=UIFactory.Gold;
+            PanelAura.Attach(card,art,UIFactory.Gold,20);
+
+            var welcome=UIFactory.Text("Welcome",card,"TAKE YOUR SEAT",40,new Vector2(760,85),new Vector2(0,260));welcome.color=UIFactory.Gold;PanelTheme.Title(welcome);
             UIFactory.Text("Body",card,"Sign in to keep your court within reach.",29,new Vector2(760,70),new Vector2(0,182),prose:true);
             _google=Choice(card,"GoogleSignIn","Sign in with Google",60,Color.white,new Color(.08f,.12f,.18f,1));
             _google.onClick.AddListener(()=>SignIn(true));
@@ -76,10 +76,16 @@ namespace Coup.Game.UI
             _status=UIFactory.Text("Status",card,"Guest progress is saved online. Link Google for account recovery.",26,new Vector2(740,100),new Vector2(0,-222),prose:true);
             _status.richText=false;
             _cancel=UIFactory.Button("Cancel",card,null,new Vector2(280,48),new Vector2(0,-302));
+            _cancel.GetComponent<Image>().color=Color.clear;
             UIFactory.Text("Label",_cancel.transform,"CANCEL",22,new Vector2(270,46),Vector2.zero);
             _cancel.onClick.AddListener(Cancel);_cancel.gameObject.SetActive(false);
-            var support=UIFactory.Button("PrivacySupport",composition,null,new Vector2(780,64),new Vector2(0,-875));
-            UIFactory.Text("Label",support.transform,"FIESTA GAMES · PRIVACY & SUPPORT",23,new Vector2(760,60),Vector2.zero).color=UIFactory.Gold;
+            // A quiet text link pinned above the bottom safe edge, not a grey bar mid-composition.
+            var support=UIFactory.Button("PrivacySupport",root,null,new Vector2(780,64),Vector2.zero);
+            support.GetComponent<Image>().color=Color.clear;
+            var supportRect=(RectTransform)support.transform;
+            supportRect.anchorMin=supportRect.anchorMax=new Vector2(.5f,0);
+            supportRect.anchoredPosition=new Vector2(0,canvas.rect.height*Screen.safeArea.yMin/Mathf.Max(1,Screen.height)+64);
+            UIFactory.Text("Label",support.transform,"FIESTA GAMES · PRIVACY & SUPPORT",23,new Vector2(760,60),Vector2.zero).color=new Color(UIFactory.Gold.r,UIFactory.Gold.g,UIFactory.Gold.b,.85f);
             support.onClick.AddListener(()=>Application.OpenURL(_api.BaseUrl.TrimEnd('/')+"/support/account-deletion"));
 
         }

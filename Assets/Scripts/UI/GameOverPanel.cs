@@ -220,6 +220,7 @@ namespace Coup.Game.UI
 
             _root.gameObject.SetActive(true);
             _root.SetAsLastSibling();
+            PanelAura.Attach(_sheet, _art, won ? UIFactory.Gold : new Color(0.62f, 0.55f, 0.45f), 22f);
             _group.alpha = 0f;
             _group.blocksRaycasts = true;
             _group.interactable = true;
@@ -342,20 +343,24 @@ namespace Coup.Game.UI
 
         private void LayoutResult(bool won)
         {
-            _sheet.sizeDelta = new Vector2(920f, 1240f);
-            _sheet.anchoredPosition = new Vector2(0f, 50f);
+            // Sized to the content, from just above the laurel to just under Return to Lobby. The
+            // old 1240 left about 160 of empty frame below the last button. Children are placed
+            // from the sheet's centre, so they shift by `lift` to stay put on screen.
+            const float lift = -45f;
+            _sheet.sizeDelta = new Vector2(920f, 1120f);
+            _sheet.anchoredPosition = new Vector2(0f, 130f);
             if (_background != null) _background.rectTransform.sizeDelta = _sheet.sizeDelta;
             if (_border != null) _border.rectTransform.sizeDelta = _sheet.sizeDelta;
-            Place(_wash != null ? _wash.rectTransform : null, new Vector2(760f, 760f), new Vector2(0f, 280f));
+            Place(_wash != null ? _wash.rectTransform : null, new Vector2(760f, 760f), new Vector2(0f, 280f + lift));
             if (_dim != null) _dim.rectTransform.sizeDelta = new Vector2(4000f, 4000f);
             var portrait = won ? 520f : 440f;
-            Place(_portraitFrame, new Vector2(portrait, portrait), new Vector2(0f, 300f));
+            Place(_portraitFrame, new Vector2(portrait, portrait), new Vector2(0f, 300f + lift));
             Place(_laurel != null ? _laurel.rectTransform : null, new Vector2(portrait + 160f, portrait + 160f), Vector2.zero);
             SizeFace(portrait * 0.72f);
-            Place(_title != null ? _title.rectTransform : null, new Vector2(820f, 140f), new Vector2(0f, -50f));
-            Place(_winner != null ? _winner.rectTransform : null, new Vector2(760f, 48f), new Vector2(0f, -150f));
-            Place(_retry != null ? _retry.GetComponent<RectTransform>() : null, new Vector2(560f, 108f), new Vector2(0f, -270f));
-            Place(_lobby != null ? _lobby.GetComponent<RectTransform>() : null, new Vector2(560f, 108f), new Vector2(0f, -390f));
+            Place(_title != null ? _title.rectTransform : null, new Vector2(820f, 140f), new Vector2(0f, -50f + lift));
+            Place(_winner != null ? _winner.rectTransform : null, new Vector2(760f, 48f), new Vector2(0f, -150f + lift));
+            Place(_retry != null ? _retry.GetComponent<RectTransform>() : null, new Vector2(560f, 108f), new Vector2(0f, -270f + lift));
+            Place(_lobby != null ? _lobby.GetComponent<RectTransform>() : null, new Vector2(560f, 108f), new Vector2(0f, -390f + lift));
         }
 
         private Button CreateButton(string name, Vector2 size, Vector2 pos, Color fill,

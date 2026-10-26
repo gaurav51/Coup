@@ -24,7 +24,7 @@ namespace Coup.Game
         private string _code, _token;
         private float _deadlineAt = -1, _windowSeconds = -1, _queueDeadlineAt = -1;
         private string _queueHeading;
-        private bool _switchingTable;
+        private bool _switchingTable, _menuOpen;
         /// <summary>Seconds until the matchmaking window lapses, or -1 when not queueing.</summary>
         public int QueueSecondsRemaining => _queueDeadlineAt < 0 ? -1 : Mathf.Max(0, Mathf.CeilToInt(_queueDeadlineAt - Time.realtimeSinceStartup));
         /// <summary>How much of this turn's clock is left, 0..1, or -1 when there is no clock.</summary>
@@ -65,7 +65,9 @@ namespace Coup.Game
             _connecting = true; _ready = false;
             try {
                 for (var attempt = 0; attempt < 6 && !_disposed; attempt++) {
+                    _menuOpen = false;
                     Show(attempt == 0 ? "Connecting to the court…" : "Connection lost. Reconnecting…\nAttempt " + (attempt + 1) + " of 6");
+                    AddButton("Back to lobby", new Vector2(0,-265), () => _match.ReturnToLobby());
                     try {
                         if (attempt > 0) await Task.Delay(Math.Min(15000, 1000 * (1 << (attempt - 1))) + UnityEngine.Random.Range(0, 400), _life.Token);
                         var access = await PlatformClient.Instance.AccessToken(attempt > 0);
@@ -104,13 +106,18 @@ namespace Coup.Game
                         _code = response.Str("code"); _token = response.Str("token"); _ready = true;
                         if (_lobby != null && _lobby.Str("status") == "lobby") {
                             await Ack("lobby:ready", JsonValue.FromObject(("ready", JsonValue.FromBool(true))));
-                            if (_match.autoStartOnline && string.IsNullOrEmpty(MatchLaunch.QueueMode) && _lobby.Get("you")?.Flag("host") == true) await StartMatch(true);
+                            if (_match.autoStartOnline && (_lobby.Str("mode") ?? "private") == "private" && string.IsNullOrEmpty(MatchLaunch.QueueMode) && _lobby.Get("you")?.Flag("host") == true) await StartMatch(true);
                             else ShowLobby();
                         }
                         return;
                     } catch (OperationCanceledException) { return; }
                     catch (ApiException error) when (error.Status == 401) { Fail("Your sign-in expired. Return to the lobby to reconnect your account."); return; }
-                    catch (InvalidOperationException error) { Fail(error.Message); return; }
+                    catch (InvalidOperationException error) {
+                        if (!string.IsNullOrEmpty(MatchLaunch.QueueMode) &&
+                            (error.Message == "That seat does not exist." || error.Message == "That table does not exist."))
+                        { _code = null; _token = null; _lobby = null; _socket.Dispose(); continue; }
+                        Fail(error.Message, true); return;
+                    }
                     catch (Exception) { _socket.Dispose(); }
                 }
                 if (!_disposed) Fail("The server is unavailable. Your table can be resumed when the connection returns.", true);
@@ -178,7 +185,7 @@ namespace Coup.Game
                     }
                     _ready = true; var log = _openingLog; _openingLog = null;
                     _queueHeading = null; _queueDeadlineAt = -1f;
-                    _match.ShowServerState(payload, log); if (_overlay != null) _overlay.SetActive(false); break;
+                    _match.ShowServerState(payload, log); if (_overlay != null && !_menuOpen) _overlay.SetActive(false); break;
                 case "game:event": _match.ShowServerEvent(payload); break;
                 case "action:rejected":
                     if (payload.Str("message") == "This seat was resumed somewhere else.") { _terminal = true; _ready = false; _socket.Dispose(); Fail("Your table is open on another device."); }
@@ -187,16 +194,17 @@ namespace Coup.Game
         }
         private void ShowLobby(string error = null) {
             if (_lobby == null) return;
-            var queue = !string.IsNullOrEmpty(MatchLaunch.QueueMode);
+            var mode = _lobby.Str("mode") ?? MatchLaunch.QueueMode;
+            var queue = mode == "casual" || mode == "ranked";
             var players = _lobby.Arr("players") ?? new List<JsonValue>();
             // Casual deals at four, ranked at two. Saying which makes the wait legible.
-            var target = MatchLaunch.QueueMode == "ranked" ? 2 : 4;
+            var target = mode == "ranked" ? 2 : 4;
             var text = queue
-                ? "FINDING PLAYERS\n" + MatchLaunch.QueueMode.ToUpperInvariant() + "  ·  " + players.Count + " of " + target + " seated\nTABLE " + _lobby.Str("code")
+                ? "FINDING PLAYERS\n" + mode.ToUpperInvariant() + "  ·  " + players.Count + " of " + target + " seated\nTABLE " + _lobby.Str("code")
                 : "PRIVATE TABLE  " + _lobby.Str("code");
             foreach (var player in players) text += "\n" + player.Str("name") + (player.Flag("host") ? "  · HOST" : "") + (!player.Flag("connected") ? "  · RECONNECTING" : player.Flag("ready") ? "  · READY" : "  · WAITING");
-            _queueHeading = queue && error == null && _queueDeadlineAt >= 0 ? text : null;
             Show(text + (error == null ? "" : "\n\n" + error));
+            _queueHeading = queue && error == null && _queueDeadlineAt >= 0 ? text : null;
             if (!queue && _lobby.Get("you")?.Flag("host") == true) {
                 AddButton("Start match", new Vector2(-205,-150), () => HostStart(false));
                 AddButton("Fill with bots", new Vector2(205,-150), () => HostStart(true));
@@ -204,9 +212,10 @@ namespace Coup.Game
             AddButton(queue ? "Cancel search" : "Leave table", new Vector2(0,-265), Leave);
         }
         public void ShowMenu() {
+            _menuOpen = true;
             if (!Connected) { Fail("Reconnecting to your table…", true); return; }
             Show("ONLINE MATCH\nYour seat is saved when you return to the lobby. Leaving abandons your seat.");
-            AddButton("Continue",new Vector2(0,-120),()=>_overlay.SetActive(false));
+            AddButton("Continue",new Vector2(0,-120),()=>{_menuOpen=false;_overlay.SetActive(false);});
             AddButton("Back to lobby",new Vector2(-205,-245),()=>_match.ReturnToLobby());
             AddButton("Leave match",new Vector2(205,-245),()=>{
                 Show("LEAVE MATCH?\nYou will abandon this seat. You can start a new match afterwards.");
@@ -228,16 +237,22 @@ namespace Coup.Game
         private void Show(string text) {
             if (_disposed) return;
             if (_overlay == null) {
-                var canvas = UnityEngine.Object.FindAnyObjectByType<Canvas>(); if (canvas == null) return;
+                // Never pick an arbitrary Canvas: ScreenTransition is persistent and fades
+                // its CanvasGroup to zero, hiding any network UI parented beneath it.
+                Canvas canvas = null;
+                foreach (var table in UnityEngine.Object.FindObjectsByType<TableView>(FindObjectsSortMode.None))
+                    if (table.match == _match) { canvas = table.GetComponentInParent<Canvas>(); break; }
+                if (canvas == null) return;
                 var dim = UIFactory.Rect("NetworkOverlay",canvas.transform,Vector2.zero,Vector2.zero);
                 dim.anchorMin = Vector2.zero; dim.anchorMax = Vector2.one; dim.offsetMin = dim.offsetMax = Vector2.zero;
                 _overlay = dim.gameObject; var image = _overlay.AddComponent<Image>(); image.color = new Color(0.01f,0.02f,0.04f,.92f);
-                _card = UIFactory.Rect("Card",dim,new Vector2(920,720),Vector2.zero);
+                _card = UIFactory.Rect("Card",dim,new Vector2(920,900),Vector2.zero);
                 var bg = _card.gameObject.AddComponent<Image>(); bg.color = UIFactory.Navy;
                 PanelTheme.Surface(bg);
-                _message = UIFactory.Text("Message",_card,text,32,new Vector2(820,360),new Vector2(0,110)); _message.richText = false;
+                _message = UIFactory.Text("Message",_card,text,32,new Vector2(820,500),new Vector2(0,160)); _message.richText = false;
             }
             for (int i=_card.childCount-1;i>=0;i--) { var child = _card.GetChild(i); if(child.GetComponent<Button>()!=null) { child.gameObject.SetActive(false); UnityEngine.Object.Destroy(child.gameObject); } }
+            _queueHeading = null;
             _message.text = text; _overlay.SetActive(true); _overlay.transform.SetAsLastSibling();
         }
         private void AddButton(string label, Vector2 position, Action action) {

@@ -18,3 +18,7 @@ MonoBehaviour:
   buttonFrame: {fileID: 21300000, guid: 4e050e22ce399449cbbdbd3e892bb681, type: 2}
   googleIcon: {fileID: 21300000, guid: 7e2af8c3b576b4cf0aa5a9df906f2f78, type: 3}
   guestIcon: {fileID: 21300000, guid: 58d66d52af3da4bb5aa6b985b1a26ab8, type: 3}
+  goldButton: {fileID: 21300000, guid: 3619ce17a2654430d96d10f801a70caa, type: 3}
+  quietFill: {fileID: 21300000, guid: 3abff22c911094e66b68e11f0fee846e, type: 3}
+  quietRim: {fileID: 21300000, guid: 607f19e87843046db81175163208b1cb, type: 3}
+  buttonFont: {fileID: 11400000, guid: a23e911ce682141438390e18d8a3e072, type: 2}

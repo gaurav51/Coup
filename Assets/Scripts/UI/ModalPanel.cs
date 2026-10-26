@@ -36,6 +36,11 @@ namespace Coup.Game.UI
         private readonly HashSet<int> _picked = new();
         private int _epoch;
         private bool _open;
+        // Vertical extent of whatever sits between the body and the footer, in its row's space.
+        private RectTransform _middle;
+        private float _middleTop, _middleBottom;
+
+        private const float SheetWidth = 980f, InnerWidth = 840f;
 
         private int _pickCount;
         private Action<IReadOnlyList<Role>> _onConfirm;
@@ -130,6 +135,7 @@ namespace Coup.Game.UI
         }
 
         private void ApplyTheme() {
+            PanelTheme.Title(_title);
             PanelTheme.Surface(_sheet.Find("Bg")?.GetComponent<Image>(),_sheet.Find("Border")?.GetComponent<Image>());
             PanelTheme.Button(_confirm);PanelTheme.Button(_dismiss);
         }
@@ -139,41 +145,42 @@ namespace Coup.Game.UI
         public void ShowInfo(string title, string body)
         {
             Reset();
-            _title.text = title;
+            _title.text = title.ToUpperInvariant();
             _body.text = body;
-            _body.rectTransform.sizeDelta = new Vector2(860, 700);
-            _body.rectTransform.anchoredPosition = new Vector2(0, 120);
             _dismiss.gameObject.SetActive(true);
             foreach(var button in _sheet.GetComponentsInChildren<Button>(true))PanelTheme.Button(button);
             Open();
         }
 
         /// <summary>A row of labelled buttons — used for choosing which card to claim.</summary>
-        public void ShowChoices(string title, string body, IReadOnlyList<(string label, Color tint, Action act)> choices)
+        public void ShowChoices(string title, string body, IReadOnlyList<(string label, Color tint, Action act)> choices,
+                                bool closable = false)
         {
             Reset();
-            _title.text = title;
+            _title.text = title.ToUpperInvariant();
             _body.text = body;
+            _dismiss.gameObject.SetActive(closable);
 
-            var slot = Mathf.Min(420f, 900f / Mathf.Max(1, choices.Count));
+            var slot = Mathf.Min(420f, InnerWidth / Mathf.Max(1, choices.Count));
             for (var i = 0; i < choices.Count; i++)
             {
                 var choice = choices[i];
                 var x = (i - (choices.Count - 1) / 2f) * slot;
 
                 var btn = UIFactory.Button($"Choice{i}", _buttonRow, _art != null ? _art.roundedPanel : null,
-                    new Vector2(slot - 20, 130), new Vector2(x, 40));
+                    new Vector2(slot - 20, 104), new Vector2(x, 40));
                 var img = btn.GetComponent<Image>();
                 img.type = Image.Type.Sliced;
                 img.color = choice.tint;
 
-                var label = UIFactory.Text("Label", btn.transform, choice.label, 30, new Vector2(slot - 30, 110), Vector2.zero);
+                var label = UIFactory.Text("Label", btn.transform, choice.label, 30, new Vector2(slot - 30, 90), Vector2.zero);
                 label.fontStyle = FontStyles.Bold;
 
                 var act = choice.act;
                 btn.onClick.AddListener(() => { Hide(); act?.Invoke(); });
                 _buttons.Add(btn.gameObject);
             }
+            _middle = _buttonRow; _middleTop = 92f; _middleBottom = -12f;
 
             foreach(var button in _sheet.GetComponentsInChildren<Button>(true))PanelTheme.Button(button);
             Open();
@@ -187,16 +194,15 @@ namespace Coup.Game.UI
                               int pickCount, Action<IReadOnlyList<Role>> onConfirm)
         {
             Reset();
-            _title.text = title;
+            _title.text = title.ToUpperInvariant();
             _body.text = body;
             _pool = pool;
             _pickCount = pickCount;
             _onConfirm = onConfirm;
 
-            _body.fontSize = 24;
-            _body.rectTransform.sizeDelta = new Vector2(880, 320);
-            _body.rectTransform.anchoredPosition = new Vector2(0, 300);
-            _body.alignment = TextAlignmentOptions.TopLeft;
+            _body.fontSize = 26;
+            // A list of rules reads down the left edge; a sentence stays centred.
+            if (body.Contains("\n")) _body.alignment = TextAlignmentOptions.TopLeft;
 
             BuildCardRow();
 
@@ -218,7 +224,7 @@ namespace Coup.Game.UI
             var count = _pool.Count;
             if (count == 0) return;
 
-            var slot = Mathf.Min(250f, 930f / count);
+            var slot = Mathf.Min(250f, (InnerWidth + 20f) / count);
             var height = Mathf.Min(380f, slot * 1.42f);   // used only to place the caption
             var cardY = 58f;
 
@@ -265,6 +271,7 @@ namespace Coup.Game.UI
                 ability.fontSizeMax = 17;
                 _captions.Add(ability.gameObject);
             }
+            _middle = _cardRow; _middleTop = cardY + height / 2f; _middleBottom = cardY - height / 2f - 99f;
         }
 
         private void TogglePick(int index)
@@ -328,8 +335,7 @@ namespace Coup.Game.UI
 
             _body.fontSize = 28;
             _body.alignment = TextAlignmentOptions.Top;
-            _body.rectTransform.sizeDelta = new Vector2(860, 240);
-            _body.rectTransform.anchoredPosition = new Vector2(0, 340);
+            _middle = null;
 
             _confirm.gameObject.SetActive(false);
             _dismiss.gameObject.SetActive(false);
@@ -340,7 +346,71 @@ namespace Coup.Game.UI
             _epoch++;
             _open = true;
             _root.gameObject.SetActive(true);
+            // The modal was authored at 1080x1920; on taller phones the dim must still cover the table.
+            _root.anchorMin = Vector2.zero; _root.anchorMax = Vector2.one; _root.offsetMin = _root.offsetMax = Vector2.zero;
+            if (_dim != null)
+            {
+                var dim = _dim.rectTransform;
+                dim.anchorMin = Vector2.zero; dim.anchorMax = Vector2.one;
+                dim.offsetMin = new Vector2(-60, -60); dim.offsetMax = new Vector2(60, 60);
+            }
+            // The table's font pass runs after the modal is bound, so style the title on each open.
+            PanelTheme.Title(_title);
+            Arrange();
+            PanelAura.Attach(_sheet, _art, UIFactory.Gold, 22f);
             PanelTransition.For(_root.gameObject, _sheet).Show();
+        }
+
+        /// <summary>
+        /// Sizes the sheet to what this mode shows, top to bottom: title, body, the card or
+        /// button row, then the footer button. A fixed 1180 tall sheet left two buttons
+        /// floating in empty space and pushed the rules text against the frame.
+        /// </summary>
+        private void Arrange()
+        {
+            const float pad = 64f, gap = 30f, footer = 110f;
+            var maxHeight = Mathf.Max(900f, _root.rect.height - 160f);
+            var hasBody = !string.IsNullOrEmpty(_body.text);
+            var footerShown = _confirm.gameObject.activeSelf || _dismiss.gameObject.activeSelf;
+            var middle = _middle != null ? _middleTop - _middleBottom : 0f;
+            var fixedHeight = pad * 2 + 70f + (middle > 0 ? gap + middle : 0) + (footerShown ? gap + footer : 0);
+
+            _body.enableAutoSizing = false;
+            var bodyHeight = hasBody ? _body.GetPreferredValues(_body.text, InnerWidth, 0).y + 6f : 0f;
+            var room = maxHeight - fixedHeight - (hasBody ? 18f : 0f);
+            if (bodyHeight > room)
+            {
+                // Too long for the screen: shrink the type rather than overflow the frame.
+                _body.enableAutoSizing = true; _body.fontSizeMax = _body.fontSize; _body.fontSizeMin = 18;
+                bodyHeight = room;
+            }
+            var height = fixedHeight + (hasBody ? 18f + bodyHeight : 0f);
+
+            _sheet.sizeDelta = new Vector2(SheetWidth, height);
+            foreach (var name in new[] { "Bg", "Border" })
+                if (_sheet.Find(name) is RectTransform layer) layer.sizeDelta = _sheet.sizeDelta;
+
+            var y = height / 2f - pad;
+            _title.rectTransform.sizeDelta = new Vector2(InnerWidth, 70f);
+            _title.rectTransform.anchoredPosition = new Vector2(0, y - 35f);
+            y -= 70f;
+            _body.gameObject.SetActive(hasBody);
+            if (hasBody)
+            {
+                y -= 18f;
+                _body.rectTransform.sizeDelta = new Vector2(InnerWidth, bodyHeight);
+                _body.rectTransform.anchoredPosition = new Vector2(0, y - bodyHeight / 2f);
+                y -= bodyHeight;
+            }
+            if (_middle != null)
+            {
+                y -= gap;
+                _middle.anchoredPosition = new Vector2(0, y - _middleTop);
+                y -= middle;
+            }
+            var footerY = -height / 2f + pad + footer / 2f;
+            foreach (var button in new[] { _confirm, _dismiss })
+                ((RectTransform)button.transform).anchoredPosition = new Vector2(0, footerY);
         }
 
         public void Hide()

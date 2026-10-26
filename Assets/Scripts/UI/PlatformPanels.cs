@@ -79,7 +79,8 @@ namespace Coup.Game.UI
             var height=_maxCardHeight;
             var card=UIFactory.Rect("Card",root,new Vector2(940,height),Vector2.zero);_card=card;
             Plaque(card,new Color(.025f,.055f,.09f,.99f),UIFactory.Gold,0f);
-            _title=UIFactory.Text("Title",card,"",42,new Vector2(800,90),new Vector2(0,height/2-75));_title.color=UIFactory.Gold;
+            PanelAura.Attach(card,_art,UIFactory.Gold,18f);
+            _title=UIFactory.Text("Title",card,"",42,new Vector2(800,90),new Vector2(0,height/2-75));_title.color=UIFactory.Gold;PanelTheme.Title(_title);
             _status=UIFactory.Text("Status",card,"",27,new Vector2(820,120),new Vector2(0,height/2-175));_status.richText=false;
             var viewport=UIFactory.Rect("Viewport",card,new Vector2(840,height-430),new Vector2(0,-25));_viewport=viewport;
             var image=viewport.gameObject.AddComponent<Image>();image.color=new Color(1,1,1,.001f);viewport.gameObject.AddComponent<RectMask2D>();
@@ -170,7 +171,7 @@ namespace Coup.Game.UI
             var gold=UIFactory.Gold;
             Plaque(row,enabled?new Color(.10f,.15f,.21f,.97f):new Color(.07f,.09f,.12f,.92f),
                        enabled?new Color(gold.r,gold.g,gold.b,.70f):new Color(.45f,.45f,.48f,.30f),2f);
-            var button=row.gameObject.AddComponent<Button>();button.interactable=enabled;PanelTheme.Button(button);
+            var button=row.gameObject.AddComponent<Button>();button.interactable=enabled;PanelTheme.Button(button,ButtonTone.Row);
             var text=UIFactory.Text("Label",row,label,30,new Vector2(740,80),Vector2.zero);text.richText=false;
             if(!enabled)text.color=new Color(.55f,.55f,.58f);
             button.onClick.AddListener(()=>Run(action));

@@ -1,3 +1,147 @@
+## 2026-10-26 — Codex: backend restart (finished)
+
+Restarted `com.coup.local-backend` with launchctl. Verified local and public
+`/ready` both return `ok: true`, authenticated, MongoDB storage.
+
+## 2026-10-24 — Codex: reconnect, simultaneous tables, queue and menu fixes
+
+Server: worker can renew an expired lease only while still its recorded owner
+(recover after Mac sleep/transient outage; never steal a replacement owner).
+Casual queue retains disconnected seats for 30 seconds and sends mode/deadline;
+expired seats are removed before bot fill. Private retention unchanged, ranked
+still removes disconnected waiting seats. Duplicate public names now get unique
+numeric suffixes, including third/fourth Player. No account/room data wiped.
+
+Client OnlineSession: derives queue presentation from server mode on recovery;
+public resume cannot auto-start as a private bot table. Countdown heading no
+longer overwrites menus; game:state no longer dismisses open Settings. Reconnect
+has Back to lobby throughout retries. Expired queued seats can requeue, terminal
+errors offer retry. Enlarged waiting copy area for visible countdown.
+
+Validation: 28 room/platform/socket tests passed, then added live two-table socket
+recovery/isolation test (all 5 socket tests pass). Durable two-table concurrent
+recovery preserves seats and isolates actions. Expired-lease recovery/replacement
+fence, four identical names, grace expiry and queue resume covered. Unity fixture:
+Settings opens and survives game update; Resume launch displays Casual countdown
+30 -> 5 seconds. No compile errors. Backend restarted and local/public /ready OK.
+Android build a4b19d1625 succeeded (0 errors, 18 warnings):
+Builds/Coup-Veiled-Court-Mobile.apk. Only emulator connected; no physical-device QA.
+Stopped Play; tutorial-seen QA preference removed. Preserve Claude panel changes.
+
+## 2026-10-24 — Claude Code: panel titles in Cinzel (finished)
+
+User asked for panel titles to match the Cinzel buttons. New
+PanelTheme.Title(text): theme buttonFont, bold uppercase, spacing 4, size
+x0.9 with autosize down to 20, Overflow (no ellipsis glyph in Cinzel).
+Applied to the lobby panel title, login TAKE YOUR SEAT, the in-game modal
+title, TABLE VOICE, CHOOSE AN OPPONENT and the tutorial heading. The
+modal title is styled on every Open, because TableView's font pass resets
+it after binding. Game-over YOU WON/YOU LOSE is unchanged (display type).
+Body text and the lobby's authored HUD are unchanged.
+
+Verified in Play mode at 1080x2400. All six titles render in Cinzel.
+Console zero errors. Five TMP warnings appeared in the table session:
+"Ellipsis not available in Rajdhani-SemiBold SDF", so some Rajdhani label
+there overflowed. Not traced; not from the titles, which are Cinzel.
+Captures/UI_Fixed/Titles_Cinzel.png.
+Coup.TutorialSeen removed afterwards.
+
+## 2026-10-24 — Claude Code: panel buttons are the gold bar with Cinzel (finished)
+
+Replaces the pill entry below. The user rejected the gold/bronze pills. Seen
+side by side: an RULES-style navy pill, a menu list, a royal-blue bar, and the
+gold bar. The user chose the gold bar, then said its font looked wrong.
+Compared four type treatments on it; Cinzel bold capitals in dark brown read
+best.
+
+PanelButtonSkin now draws ornate_golden_fantasy_ui_banner, cropped to its
+visible band and 9-sliced at runtime so the diamond tips keep their shape.
+Labels are Cinzel bold uppercase, spacing 3, dark brown, autosized, and kept
+between the tips. Back, Close and Cancel (Quiet tone) are the table's
+RULES pill: navy rounded fill, half-strength gold rim, light Cinzel. Label
+overflow is Overflow because Cinzel has no ellipsis glyph (TMP warned on
+every label).
+
+PanelTheme.asset gained goldButton, quietFill, quietRim and buttonFont,
+assigned through the Editor. The gold banner was importing at 512 from a
+stale platform override. A forced reimport let CoupSpriteImportSettings apply
+the Panels cap (1024); no .meta hand-edit. ModalPanel choice buttons went
+from 130 to 104 tall so the tips don't crowd the label.
+
+Verified in Play mode at 1080x2400: Settings, Learn the Court, the opponent
+picker and game over. Console zero errors/warnings after the overflow
+fix. Captures/UI_Fixed/Gold_*.png, Button_Options*.png. Not checked: 1920,
+the voice sheet, the online network menu, the exchange Confirm. Panel titles
+are still Rajdhani; Cinzel would match the buttons if wanted.
+
+## 2026-10-24 — Claude Code: panel buttons get their own pill (superseded)
+
+User: panels and buttons were not distinct. Buttons used the same navy marble
+and gold frame as the panels. New PanelButtonSkin, applied by
+PanelTheme.Button, so every themed panel button changes in one place. It uses
+the rounded gold pill from the tutorial ornament atlas (no new art), with
+end caps sized to the button's height. Three tones: Primary is gold with dark
+ink (actions, choices, opponent names); Row is a bronze tint used for lobby
+panel list rows; Quiet is dark for Back, Close, Cancel and Return to Lobby,
+picked by name or label. The skin re-applies if other code swaps the sprite,
+and keeps label ink readable, dimmed when the button is disabled. The table's
+VOICE trigger is excluded so it keeps matching RULES.
+
+Verified in Play mode at 1080x2400: Settings and Play lobby panels, the Learn
+the Court modal, the opponent picker and game over. Console zero
+errors/warnings. Captures/UI_Fixed/Buttons_*.png. Coup.TutorialSeen removed
+afterwards. Not checked: voice sheet buttons, the online network menu, the
+exchange picker's Confirm, and the 1920 aspect for this change.
+
+## 2026-10-24 — Claude Code: project-wide UI pass and panel aura (finished)
+
+User asked for a pass over the whole UI: anchoring, text, other issues, plus
+animation around the panels. Surveyed login, lobby, lobby panels, the table,
+in-game modals, target picker, voice panel and game over at 1080x2400 and
+1080x1920 (Captures/UI_Survey). Runtime code only. No prefab, scene YAML or
+art was touched.
+
+Fixed:
+- ModalPanel: the sheet was a fixed 980x1180. The Rules choice showed two
+  buttons in empty space and could not be closed; the Court reference pushed
+  its text and card row into the frame. The sheet now sizes to its content
+  (title, measured body, card or button row, footer) with an 840 inner
+  column, uppercase titles and a CLOSE on the Rules choice (`closable`). The
+  dim and root now stretch to the canvas, because the authored 1200x2100 dim
+  did not cover 2400-tall screens.
+- Targeting prompts said "Tap Steal again to cancel" while the picker hides
+  the action bar. They now point to the profile or name buttons.
+- Turn caption: narrower text box, autosize down to 20, clear of the rim.
+- TargetSelectionPanel: themed surface and buttons, uppercase names with coin
+  counts, 450 tall so content clears the frame, a rise-in animation.
+  Rebuilds clear only a Content layer; clearing the whole root had destroyed
+  the frame and aura.
+- TableVoiceChat: themed surface and buttons, buttons inside the frame,
+  footer spaced above BACK TO TABLE.
+- Login: removed the text COUP/VEILED COURT title that duplicated the hall
+  logo. The support link lost its grey 8%-white bar and is pinned above the
+  bottom safe edge. The Cancel pill is transparent.
+- Lobby: bottom action row raised 24 (it sat about 29px above the screen edge).
+- GameOverPanel: sheet trimmed to its content (about 160px of empty frame
+  removed under Return to Lobby).
+
+Animation: new PanelAura on the modal, lobby panel card, login card, voice
+panel, target picker, game over and tutorial explanation plaque. A
+generated soft 9-sliced halo breathes outside the frame (fillCenter off;
+filled, it tinted interiors gold) and two glints travel the frame in opposite
+directions. Unscaled time, static under Coup.ReducedMotion, no raycasts.
+
+Verified in Play mode with captures in Captures/UI_Fixed
+(Modals_Before_After.png compares). Compile and console zero errors and
+warnings. Removed Coup.TutorialSeen afterwards.
+
+Not done: the game-over laurel PNG has a faint checkerboard baked into its
+"transparent" area and small holes in the leaves. It needs cleaned art, not
+code. Season Pass, Event banner and other authored lobby cards were left as
+authored. QA note: opening a lobby panel fetched a profile, which created a
+guest account on the ngrok backend from this Editor. Not tested on a device
+or with a notch safe area.
+
 ## 2026-10-24 — Claude Code: tutorial layout fixed to the backdrop frame (finished)
 
 User reported the tutorial UI broken at 1080x2400. Causes, all in GameTutorial.cs:

@@ -146,6 +146,12 @@ namespace Coup.Game.UI
             _discardCount = FindText("Stage/DiscardCountPlate/DiscardCount");
             _statusTitle = FindText("Stage/StatusPlate/StatusTitle");
             _status = FindText("Stage/StatusPlate/Status");
+            if (_status != null)
+            {
+                // Keep long prompts off the plate's rim: narrower box, and let one line shrink a little.
+                _status.rectTransform.sizeDelta = new Vector2(880, _status.rectTransform.sizeDelta.y);
+                _status.enableAutoSizing = true; _status.fontSizeMax = _status.fontSize; _status.fontSizeMin = 20;
+            }
             _handRoot = FindRect("Stage/Hand");
             _hudRect = FindRect("Stage/Hud");
             _hudName = FindText("Stage/Hud/Name");
@@ -954,15 +960,17 @@ namespace Coup.Game.UI
             return new Prompt("", "");
         }
 
+        // The action bar is replaced by the opponent picker while targeting, so the way
+        // back is its Cancel button, not tapping the action again.
         private Prompt TargetingPrompt(ActionKind kind) => kind switch
         {
-            ActionKind.Steal => new Prompt("Steal 2 coins",
-                "Tap a player. You claim the Captain. They can stop you. Tap Steal again to cancel."),
+            ActionKind.Steal => new Prompt("STEAL 2 COINS",
+                "Tap a glowing profile or a name below. You claim the Captain; they can block."),
             ActionKind.Assassinate => new Prompt("CHOOSE WHO TO ASSASSINATE",
-                "Tap a glowing opponent profile or choose their name below. Costs 3 coins."),
-            ActionKind.Coup => new Prompt("Force a lost card",
-                "Tap a player. This costs 7 coins and cannot be stopped. Tap Coup again to cancel."),
-            _ => new Prompt("Choose a player", "Tap who this hits. Tap the action again to cancel.")
+                "Tap a glowing profile or a name below. Costs 3 coins."),
+            ActionKind.Coup => new Prompt("FORCE A LOST CARD",
+                "Tap a glowing profile or a name below. Costs 7 coins and cannot be stopped."),
+            _ => new Prompt("CHOOSE A PLAYER", "Tap a glowing profile or a name below.")
         };
 
         private string PendingHeadline(CoupGame game)
@@ -1151,7 +1159,7 @@ namespace Coup.Game.UI
                 new (string label, Color tint, System.Action act)[] {
                     ("TUTORIAL", UIFactory.Navy, () => GameTutorial.Open(this)),
                     ("RULES & ROLES", UIFactory.Navy, ShowRulesReference)
-                });
+                }, closable: true);
         }
 
         private void ShowRulesReference()

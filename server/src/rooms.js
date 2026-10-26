@@ -104,9 +104,11 @@ export class RoomStore {
   disconnect(socketId) {
     const found = this.findBySocket(socketId);
     if (!found) return null;
-    if (this.retainDisconnectedLobbies && found.room.mode === "private" && found.room.status === "lobby") {
+    if (this.retainDisconnectedLobbies && found.room.mode !== "ranked" && found.room.status === "lobby") {
       found.player.connected = false;
       found.player.socketId = null;
+      found.player.disconnectedAt = Date.now();
+      if (found.room.mode === "casual") found.room.queueDeadline = Math.max(found.room.queueDeadline || 0, Date.now() + 30000);
       return { kind: "lobby", code: found.room.code, recipients: this.lobbyRecipients(found.room) };
     }
     return RoomStore.prototype.leave.call(this, socketId, false);
@@ -132,6 +134,7 @@ export class RoomStore {
 
     player.socketId = socketId;
     player.connected = true;
+    delete player.disconnectedAt;
     if (room.game) {
       return {
         kind: "game",
@@ -248,12 +251,16 @@ export class RoomStore {
     if (!accountId || !["casual", "ranked"].includes(mode)) throw new RoomError("Invalid matchmaking request.");
     if (this.activeSeat(accountId)) throw new RoomError("Resume or leave your current table first.");
     const waiting = [...this.rooms.values()].find(r => r.mode === mode && r.status === "lobby"
-      && r.players.length < MAX_PLAYERS && r.players.some(p => p.connected));
+      && r.players.length < MAX_PLAYERS && r.players.some(p => p.connected || p.accountId));
     let result;
     if (waiting) {
       // Public names need not be globally unique; the account owns the seat.
-      let safeName = cleanName(name);
-      if (waiting.players.some(p => p.name.toLowerCase() === safeName.toLowerCase())) safeName = safeName.slice(0, 13) + " II";
+      const baseName = cleanName(name);
+      let safeName = baseName;
+      for (let suffix = 2; waiting.players.some(p => p.name.toLowerCase() === safeName.toLowerCase()); suffix++) {
+        const tail = ` ${suffix}`;
+        safeName = baseName.slice(0, 16 - tail.length) + tail;
+      }
       result = RoomStore.prototype.join.call(this, { code: waiting.code, name: safeName, accountId, socketId });
     } else result = RoomStore.prototype.create.call(this, { accountId, socketId, name, mode });
     const room = this.peek(result.code);
@@ -282,7 +289,15 @@ export class RoomStore {
   startQueued(code) {
     const room = this.peek(code);
     if (!room || room.status !== "lobby" || room.mode === "private") return null;
+    const before = room.players.length;
+    room.players = room.players.filter(seat => seat.bot || seat.connected || Date.now() - (seat.disconnectedAt || room.createdAt) < 30000);
+    if (!room.players.length) { this.rooms.delete(room.code); return { kind: "lobby", code: room.code, recipients: [] }; }
+    if (before !== room.players.length) {
+      if (!room.players.some(seat => seat.token === room.hostToken)) room.hostToken = room.players[0].token;
+      room.reindex();
+    }
     if (!room.players.some(seat => !seat.bot && seat.connected)) return null;
+    if (room.players.some(seat => !seat.bot && !seat.connected)) return null;
     if (room.mode === "casual") this.addBots(room, Math.max(0, QUEUE_SEATS - room.players.length));
     if (room.players.length < MIN_PLAYERS) return null;
     for (const seat of room.players) seat.ready = true;
@@ -470,6 +485,7 @@ export class RoomStore {
     return {
       code: room.code,
       status: room.status,
+      mode: room.mode,
       queueDeadline: room.queueDeadline ?? null,
       serverTime: Date.now(),
       you: {

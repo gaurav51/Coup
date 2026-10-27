@@ -144,6 +144,7 @@ namespace Coup.Game.UI
         private static void Stretch(RectTransform t) { t.anchorMin=Vector2.zero;t.anchorMax=Vector2.one;t.offsetMin=t.offsetMax=Vector2.zero; }
         public void Close() { _view.Cancel(); PanelTransition.For(_root,_card).Hide();_busy=false;_page=null; }
         public async void Show(string page) {
+            if(page=="Rules") { Close(); RulesReferenceCard.Open(this,_art); return; }
             _view.Cancel();_view.Dispose();_view=new CancellationTokenSource();var cancellation=_view.Token;
             _page=page;_busy=false;
             foreach(var old in new[]{"InformationSheet","FriendsSheet"}) {var t=transform.Find(old);if(t!=null)t.gameObject.SetActive(false);}
@@ -279,8 +280,7 @@ namespace Coup.Game.UI
                     Nav("Account and privacy","Account");Nav("Privacy and support","Privacy and support");Nav("Friends","Friends");Nav("Match history","History");Nav("Rules","Rules");Nav("Connection status","Connection");break;
                 case "Connection":
                     await Get("/v1/status",token);Text("Connected to the game server. Your progress and online matches are stored on the server.",150);Button("Refresh connection",()=>{Show("Connection");return Task.CompletedTask;});break;
-                case "Rules":
-                    Text("Be the last player with influence. Begin with two hidden role cards and two coins (the first player starts with one coin in a two-player game).\n\nIncome gives 1 coin. Foreign Aid gives 2 and can be blocked. A Coup costs 7 and cannot be blocked or challenged. At 10 coins you must Coup.\n\nChallenge a role claim if you suspect a bluff. A failed challenge costs influence; a successful one exposes the bluffer. Lose both cards and you are out.\n\nOnline actions have a time limit. A missed decision passes, takes Income (or a forced Coup), or chooses a legal card. Reconnecting restores the authoritative table.",800);Nav("The five roles","Collection");break;
+
             }
         }
         private void OnStoreChanged() {if(this!=null && _page=="Shop" && IsOpen)_status.text=_store.Status;}

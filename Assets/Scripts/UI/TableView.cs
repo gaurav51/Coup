@@ -100,6 +100,7 @@ namespace Coup.Game.UI
             else
                 BindScene();
 
+            EnsureRuleCardButton();
             UIFactory.ApplyFonts(transform);
             Sfx.BindClicks(transform);
             if (GetComponent<TableResponsiveLayout>() == null) gameObject.AddComponent<TableResponsiveLayout>();
@@ -1153,6 +1154,23 @@ namespace Coup.Game.UI
             GameTutorial.Open(this);
         }
 
+        private void EnsureRuleCardButton()
+        {
+            var button = _stage.Find("RuleCard")?.GetComponent<Button>();
+            if (button == null)
+                button = TextButton("RuleCard", _stage, "RULE CARD", new Vector2(220, 76), Vector2.zero);
+            var rect = (RectTransform)button.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(1, 1);
+            rect.anchoredPosition = new Vector2(-142, -218);
+            var label = button.GetComponentInChildren<TMP_Text>();
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMax = 26; label.fontSizeMin = 18;
+            label.overflowMode = TextOverflowModes.Overflow;
+            PanelTheme.Button(button, ButtonTone.Quiet);
+            Wire(button, ShowRulesReference);
+        }
+
         private void ShowRules()
         {
             _modal.ShowChoices("LEARN THE COURT", "Replay the guided tutorial or browse every role and action.",
@@ -1164,25 +1182,9 @@ namespace Coup.Game.UI
 
         private void ShowRulesReference()
         {
-            // One terse line per action here; the full wording lives behind a long
-            // press on the action itself, so this stays scannable.
-            var body = string.Join("\n", ActionOrder.Select(k =>
-                $"<b>{art?.For(k)?.label ?? k.ToString()}</b>   {ShortRule(k)}"));
-
-            _modal.ShowCards("The Court", body, Rules.AllRoles, 0, null);
+            _modal.Hide();
+            RulesReferenceCard.Open(this, art);
         }
-
-        private static string ShortRule(ActionKind kind) => kind switch
-        {
-            ActionKind.Income => "take 1 · unstoppable",
-            ActionKind.ForeignAid => "take 2 · Duke blocks",
-            ActionKind.Tax => "take 3 · claim Duke",
-            ActionKind.Steal => "take 2 · claim Captain · Captain or Ambassador blocks",
-            ActionKind.Assassinate => "pay 3 · claim Assassin · Contessa blocks",
-            ActionKind.Exchange => "swap cards · claim Ambassador",
-            ActionKind.Coup => "pay 7 · unstoppable · forced at 10 coins",
-            _ => ""
-        };
 
         private void ShowSettings() {
             if (match != null && match.playOnline) { match.ShowNetworkMenu(); return; }

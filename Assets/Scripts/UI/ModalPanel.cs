@@ -343,6 +343,9 @@ namespace Coup.Game.UI
 
         private void Open()
         {
+            // A live decision must be visible even while the reference card is open.
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas != null) canvas.rootCanvas.GetComponentInChildren<RulesReferenceCard>()?.Close();
             _epoch++;
             _open = true;
             _root.gameObject.SetActive(true);

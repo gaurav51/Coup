@@ -1,3 +1,77 @@
+## 2026-10-27 — Claude Code: rule card grid closer to the reference (finished)
+
+User re-sent the printed PLAY table and chose to keep the navy/gold theme. Added the
+reference's details on top of Codex's grid: a white role sigil beside each
+character name (crown, split blade, globe, compass, diamond — traced from the
+emblems already on the role portraits), a ✖ for every empty cell, a short rule
+for "no character", italic asides ("Choose player to lose influence", "at 10+
+coins you must launch a Coup"), and the reference wording (Steal "Take 2 coins
+from another player", "Blocks Foreign Aid"). Rows size to their tallest cell;
+columns rebalanced to 204/156/310/190 so notes stay on one line, action and
+header names are autosized rather than wrapped.
+
+Sprites: Assets/Sprites/Rules/Resources/RulesCard/ (5 sigils 96px, Mark_None
+48px, white, no text), loaded with Resources.Load like the Tutorial folder; the
+postprocessor configured them (sprite, no mips, ASTC 4x4). Generator:
+tmp/sigils/make_sigils.py. No CoupArt, prefab or scene changes.
+
+Verified in Play (Lobby, card opened directly, tabs round-tripped): all six
+sprites resolve, zero TMP wrap/overflow in the grid, grid 909 of 950 viewport
+(no scroll), no console warnings/errors. Native captures 1080x1920 and
+1080x2400: Captures/RulesCard/Sigils_Final_*.png. Stopped Play; Game view left
+on the original 2400 preset. Did not re-test the table RULE CARD button (unchanged).
+
+## 2026-10-27 — Codex: rule card matches supplied table reference (finished)
+
+Replaced Actions prose with Character / Action / Effect / Counteraction grid,
+matching user's screenshot structure and row order. PLAY heading, one-action /
+mandatory Coup reminder, solid role-color cells, alternating navy rows. Kept game
+PanelTheme and gold controls. Counteraction explicitly means what that character
+can block. Rule costs use Core.Rules; Steal remains 2. Detailed Court Rules tab
+retained. Card widened to 980 canvas units; all eight rows fit without scrolling.
+
+Verified in Play via direct Rule Card button: tabs switch, detailed side scrolls,
+zero TMP overflow on grid, no console warnings/errors. Native captures at
+1080x1920 and 1080x2400: Captures/RulesCard/Grid_Final_*.png. Stopped Play and
+restored original 2400 preset. No prefab, scene, or printable PDF changes.
+
+## 2026-10-27 — Codex: direct Rule Card table button (finished)
+
+Added a themed RULE CARD button at the upper right of the table, below Settings
+and opposite VOICE. Opens the reference directly; existing Rules/tutorial menu
+remains. Runtime instance UI only, no prefab or scene rewrites. Verified fresh
+Play pointer-click handler opens card, label fits one line, native 1080x2400
+capture Captures/RulesCard/Direct_Button_Final.png. No compile errors. Stopped Play.
+
+## 2026-10-27 — Codex: themed in-game rules card (finished)
+
+Implemented RulesReferenceCard runtime overlay, shared by lobby Rules (including
+Settings navigation) and table Rules > Rules & Roles. Two tabs: Actions and Court
+Rules; TMP content, role abilities from CoupArt, costs from Rules. User requested
+matching the game: uses PanelTheme navy marble/gold rim, gold selected tab, quiet
+navy controls, Cinzel titles and PanelAura. Safe-area fit, scrollable rules, Close
+and Escape. ModalPanel closes the reference when a new decision dialog opens.
+No prefab or scene sources rebuilt; no baked text or imported PDF textures.
+
+Verified in Play: lobby/table entry points, both sides, scroll to final section,
+Close/reopen and tab callbacks, one reused overlay, decision modal priority.
+Inspected full-resolution captures at 1080x1920 and 1080x2400 under
+Captures/RulesCard/Final_*.png. Final fresh Play callbacks passed; no compile
+errors. Earlier QA session emitted missing-script warnings after Editor reload;
+not reproduced in final fresh Play. Editor stopped, original 2400 preset restored;
+tutorial preference preserved. Vivox populated its project Settings.json during
+Play; left that incidental service change intact. No physical-device test.
+
+## 2026-10-27 — Codex: printable Coup reference card (finished)
+
+User clarified a physical printable card. Created an 80 x 120 mm two-sided
+vector PDF plus an A4 cut-and-glue sheet in output/pdf/. Cream/navy/gold
+with authoritative role accents. Actions on front; setup, turn, challenges,
+blocks and influence on back. Steal remains 2 coins. Checked against local
+Rules.cs and the base-game rulebook; rendered and visually inspected both
+sides and A4 sheet. No clipping in final renders. Unity was not needed or
+changed. Generator retained at tmp/pdfs/make_card.py.
+
 ## 2026-10-26 — Codex: backend restart (finished)
 
 Restarted `com.coup.local-backend` with launchctl. Verified local and public
